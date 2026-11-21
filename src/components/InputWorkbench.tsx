@@ -74,10 +74,16 @@ export function InputWorkbench({
 
   const activeMode: AnalysisMode = payload.analysisMode ?? "portfolio";
   const jurisdiction: Jurisdiction = payload.jurisdiction ?? "Canada";
-  const totalWeight = payload.holdings.reduce(
-    (s, h) => s + (Number(h.weightPct) || 0),
+  const hasShorts = payload.holdings.some((h) => h.side === "SHORT" || h.weightPct < 0);
+  const grossExposure = payload.holdings.reduce(
+    (s, h) => s + Math.abs(Number(h.weightPct) || 0),
     0
   );
+  const netExposure = payload.holdings.reduce((s, h) => {
+    const absW = Math.abs(Number(h.weightPct) || 0);
+    return s + (h.side === "SHORT" || h.weightPct < 0 ? -absW : absW);
+  }, 0);
+  const totalWeight = grossExposure;
 
   const handleModeSwitch = (nextMode: AnalysisMode) => {
     const patch: Partial<AnalysisRequestPayload> = { analysisMode: nextMode };
@@ -239,7 +245,7 @@ export function InputWorkbench({
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Universal Outcome Presets
           </span>
-          <span className="text-[11px] text-emerald-400">6 Asset Classes</span>
+          <span className="text-[11px] text-emerald-400">7 Modes · $100M CFA</span>
         </div>
         <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
           {PRESET_SCENARIOS.map((preset) => {
@@ -793,10 +799,16 @@ export function InputWorkbench({
           <div className="flex items-center gap-2">
             <span
               className={`font-mono text-[11px] font-semibold ${
-                Math.abs(totalWeight - 100) < 0.5 ? "text-emerald-400" : "text-amber-400"
+                hasShorts
+                  ? "text-cyan-300"
+                  : Math.abs(totalWeight - 100) < 0.5
+                  ? "text-emerald-400"
+                  : "text-amber-400"
               }`}
             >
-              Sum: {totalWeight.toFixed(0)}%
+              {hasShorts
+                ? `G:${grossExposure.toFixed(0)}% / N:${netExposure.toFixed(0)}%`
+                : `Sum: ${totalWeight.toFixed(0)}%`}
             </span>
             <button
               type="button"
@@ -809,58 +821,78 @@ export function InputWorkbench({
         </div>
 
         <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-          {payload.holdings.map((h, idx) => (
-            <div
-              key={`${h.ticker}-${idx}`}
-              className="grid grid-cols-12 items-center gap-1.5 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1.5"
-            >
-              <input
-                type="text"
-                value={h.ticker}
-                onChange={(e) =>
-                  updateHolding(idx, { ticker: e.target.value.toUpperCase() })
-                }
-                className="col-span-3 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none"
-                placeholder="TICKER"
-              />
-              <select
-                value={h.sector}
-                onChange={(e) =>
-                  updateHolding(idx, {
-                    sector: e.target.value as Holding["sector"],
-                  })
-                }
-                className="col-span-5 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 focus:border-emerald-500 focus:outline-none"
+          {payload.holdings.map((h, idx) => {
+            const isShort = h.side === "SHORT" || h.weightPct < 0;
+            return (
+              <div
+                key={`${h.ticker}-${idx}`}
+                className="grid grid-cols-12 items-center gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1.5"
               >
-                {SECTORS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <div className="col-span-3 flex items-center rounded border border-slate-800 bg-slate-900 px-1.5 py-1">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={h.weightPct}
-                  onChange={(e) =>
-                    updateHolding(idx, { weightPct: Number(e.target.value) || 0 })
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateHolding(idx, {
+                      side: isShort ? "LONG" : "SHORT",
+                      weightPct: Math.abs(h.weightPct),
+                    })
                   }
-                  className="w-full bg-transparent font-mono text-[11px] text-white focus:outline-none"
+                  title="Toggle LONG / SHORT"
+                  className={`col-span-1 rounded border py-1 text-center font-mono text-[10px] font-bold transition ${
+                    isShort
+                      ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
+                      : "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                  }`}
+                >
+                  {isShort ? "S" : "L"}
+                </button>
+                <input
+                  type="text"
+                  value={h.ticker}
+                  onChange={(e) =>
+                    updateHolding(idx, { ticker: e.target.value.toUpperCase() })
+                  }
+                  className="col-span-3 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none"
+                  placeholder="TICKER"
                 />
-                <span className="text-[10px] text-slate-500">%</span>
+                <select
+                  value={h.sector}
+                  onChange={(e) =>
+                    updateHolding(idx, {
+                      sector: e.target.value as Holding["sector"],
+                    })
+                  }
+                  className="col-span-4 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 focus:border-emerald-500 focus:outline-none"
+                >
+                  {SECTORS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <div className="col-span-3 flex items-center rounded border border-slate-800 bg-slate-900 px-1.5 py-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.abs(h.weightPct)}
+                    onChange={(e) =>
+                      updateHolding(idx, { weightPct: Number(e.target.value) || 0 })
+                    }
+                    className="w-full bg-transparent font-mono text-[11px] text-white focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500">%</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeHolding(idx)}
+                  className="col-span-1 flex justify-center text-slate-500 hover:text-rose-400"
+                  title="Remove position"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => removeHolding(idx)}
-                className="col-span-1 flex justify-center text-slate-500 hover:text-rose-400"
-                title="Remove position"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

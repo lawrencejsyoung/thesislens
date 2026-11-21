@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   analyzeBondDuration,
+  analyzeHedgeFundRisk,
   analyzePortfolioMetrics,
   analyzeRealEstateDeal,
   evaluatePredictionBet,
   priceOptionStrategy,
+  runCfaForensicAnalysis,
   runDcfValuation,
+  runLiquidityAndComplianceCheck,
   runMonteCarloSimulation,
   simulateVenturePowerLaw,
   stressTestMacroShocks,
 } from "@/lib/quant-engine";
 import {
   BondInputs,
+  CfaForensicInputs,
   DcfInputs,
   Holding,
   OptionStrategyInputs,
@@ -32,7 +36,9 @@ export async function POST(req: NextRequest) {
         | "options"
         | "real_estate"
         | "bond"
-        | "venture";
+        | "venture"
+        | "cfa_forensics"
+        | "hedge_fund_risk";
     };
 
     if (type === "dcf") {
@@ -72,6 +78,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         simulateVenturePowerLaw(body.ventureInputs as VentureDealInputs)
       );
+    }
+    if (type === "cfa_forensics") {
+      return NextResponse.json(
+        runCfaForensicAnalysis(body.cfaForensicInputs as CfaForensicInputs)
+      );
+    }
+    if (type === "hedge_fund_risk") {
+      const holdings = body.holdings as Holding[];
+      const aumUsd = Number(body.aumUsd ?? body.capital) || 100_000_000;
+      const maxAdvPct = Number(body.maxAdvParticipationPct) || 15;
+      const risk = analyzeHedgeFundRisk(holdings, aumUsd);
+      const forensics = body.cfaForensicInputs
+        ? runCfaForensicAnalysis(body.cfaForensicInputs as CfaForensicInputs)
+        : undefined;
+      const compliance = runLiquidityAndComplianceCheck(
+        holdings,
+        aumUsd,
+        risk,
+        forensics,
+        maxAdvPct
+      );
+      return NextResponse.json({ risk, compliance, forensics });
     }
 
     return NextResponse.json(
