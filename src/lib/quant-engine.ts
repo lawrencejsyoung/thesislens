@@ -47,6 +47,10 @@ export {
   runGlobalTaxAudit,
   generateDeterministicTaxAdvice,
 } from "./quant/global-tax-engine";
+export {
+  simulateCioRebalance,
+  defaultResidencyForJurisdiction,
+} from "./quant/rebalance-simulator";
 
 const RISK_FREE_RATE = 0.042; // 4.2% 10Y Treasury baseline
 

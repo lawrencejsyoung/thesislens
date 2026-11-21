@@ -17,6 +17,7 @@ import {
 import {
   AnalysisMode,
   AnalysisRequestPayload,
+  ExperienceTier,
   Holding,
   Jurisdiction,
   LiveMarketQuote,
@@ -38,6 +39,7 @@ interface InputWorkbenchProps {
   isRunning: boolean;
   activePresetId: string | null;
   onSelectPreset: (id: string) => void;
+  experienceTier?: ExperienceTier;
 }
 
 const SECTORS: Holding["sector"][] = [
@@ -72,6 +74,7 @@ export function InputWorkbench({
   isRunning,
   activePresetId,
   onSelectPreset,
+  experienceTier = "prosumer",
 }: InputWorkbenchProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [marketQuery, setMarketQuery] = useState("");
@@ -885,35 +888,41 @@ export function InputWorkbench({
         <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
           {payload.holdings.map((h, idx) => {
             const isShort = h.side === "SHORT" || h.weightPct < 0;
+            const showShortToggle =
+              experienceTier === "institutional" || activeMode === "hedge_fund" || hasShorts;
             return (
               <div
                 key={`${h.ticker}-${idx}`}
                 className="grid grid-cols-12 items-center gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1.5"
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateHolding(idx, {
-                      side: isShort ? "LONG" : "SHORT",
-                      weightPct: Math.abs(h.weightPct),
-                    })
-                  }
-                  title="Toggle LONG / SHORT"
-                  className={`col-span-1 rounded border py-1 text-center font-mono text-[10px] font-bold transition ${
-                    isShort
-                      ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
-                      : "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                  }`}
-                >
-                  {isShort ? "S" : "L"}
-                </button>
+                {showShortToggle && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateHolding(idx, {
+                        side: isShort ? "LONG" : "SHORT",
+                        weightPct: Math.abs(h.weightPct),
+                      })
+                    }
+                    title="Toggle LONG / SHORT"
+                    className={`col-span-1 rounded border py-1 text-center font-mono text-[10px] font-bold transition ${
+                      isShort
+                        ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
+                        : "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                    }`}
+                  >
+                    {isShort ? "S" : "L"}
+                  </button>
+                )}
                 <input
                   type="text"
                   value={h.ticker}
                   onChange={(e) =>
                     updateHolding(idx, { ticker: e.target.value.toUpperCase() })
                   }
-                  className="col-span-3 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none"
+                  className={`${
+                    showShortToggle ? "col-span-3" : "col-span-4"
+                  } rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none`}
                   placeholder="TICKER"
                 />
                 <select

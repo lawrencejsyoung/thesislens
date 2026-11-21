@@ -1116,3 +1116,111 @@ export interface TaxConsultantMessage {
   actionSteps?: string[];
   riskFlags?: string[];
 }
+
+// ── Adaptive Experience Tier ──
+export type ExperienceTier = "prosumer" | "institutional";
+
+// ── 1-Click Tax-Aware CIO Rebalance Simulator ──
+export type RebalanceAccountWrapper = "taxable" | "tax_sheltered";
+
+export interface RebalanceSimulationOptions {
+  residencyId: TaxResidencyId;
+  accountWrapper: RebalanceAccountWrapper;
+  assumedUnrealizedGainPct: number; // 0..80
+}
+
+export interface RebalancePositionDelta {
+  ticker: string;
+  name: string;
+  sector: Holding["sector"];
+  action: RebalanceAction["action"];
+  currentWeightPct: number;
+  targetWeightPct: number;
+  deltaWeightPct: number;
+  tradeDollarAmount: number;
+  estimatedRealizedGainUsd: number;
+  estimatedTaxDragUsd: number;
+  rationale: string;
+}
+
+export interface RebalanceTaxImpact {
+  residencyId: TaxResidencyId;
+  residencyLabel: string;
+  accountWrapper: RebalanceAccountWrapper;
+  ltcgRatePct: number;
+  assumedUnrealizedGainPct: number;
+  totalTurnoverPct: number;
+  totalTrimmedDollars: number;
+  estimatedRealizedGainsUsd: number;
+  totalTaxDragUsd: number;
+  taxDragBps: number;
+  annualExpectedAlphaGainUsd: number;
+  paybackMonths: number | null;
+  verdict: "TAX_EFFICIENT" | "USE_NEW_CASH_FLOWS" | "TAX_FREE_WRAPPER";
+  verdictExplanation: string;
+}
+
+export interface RebalanceSimulationResult {
+  beforeMetrics: PortfolioMetrics;
+  afterMetrics: PortfolioMetrics;
+  beforeMonteCarlo: MonteCarloResult;
+  afterMonteCarlo: MonteCarloResult;
+  beforeWorstShock: MacroShockScenarioResult | null;
+  afterWorstShock: MacroShockScenarioResult | null;
+  proposedHoldings: Holding[];
+  positionDeltas: RebalancePositionDelta[];
+  deltas: {
+    expectedReturnDeltaPct: number;
+    volatilityDeltaPct: number;
+    sharpeDelta: number;
+    betaDelta: number;
+    hhiDelta: number;
+    maxDrawdownDeltaPct: number;
+    medianEndingValueDeltaUsd: number;
+    downsideP10DeltaUsd: number;
+    worstShockImprovementPct: number;
+  };
+  taxImpact: RebalanceTaxImpact;
+}
+
+// ── Interactive IC War Room ──
+export type WarRoomTargetRole =
+  | "cio"
+  | "bull"
+  | "bear"
+  | "cfa_risk"
+  | "tax_strategist"
+  | "bull_vs_bear";
+
+export interface WarRoomMessage {
+  id: string;
+  sender: "user" | "agent";
+  targetRole: WarRoomTargetRole;
+  speakerLabel: string;
+  content: string;
+  rebuttalContent?: string; // populated for bull_vs_bear clash
+  keyTakeaways?: string[];
+  convictionDelta?: number; // -15..+15 shift on committee conviction
+  toolCalls?: ToolCallRecord[];
+  mode?: "live-gemini" | "deterministic-engine";
+  timestamp: string;
+}
+
+export interface WarRoomRequestPayload {
+  question: string;
+  targetRole: WarRoomTargetRole;
+  analysisRequest: AnalysisRequestPayload;
+  cioMemo: CioInvestmentMemo;
+  universalQuant: UniversalQuantBundle;
+  rebalanceSummary?: {
+    sharpeDelta: number;
+    volatilityDeltaPct: number;
+    totalTaxDragUsd: number;
+    verdict: string;
+  };
+  history?: { sender: "user" | "agent"; speakerLabel: string; content: string }[];
+}
+
+export interface WarRoomResponsePayload {
+  message: WarRoomMessage;
+}
