@@ -9,7 +9,16 @@ import {
 } from "../quant-engine";
 import { evaluatePredictionBet } from "./prediction-ev";
 import { priceOptionStrategy } from "./options-bsm";
-import { analyzeBondDuration, analyzeRealEstateDeal } from "./real-assets-credit";
+import {
+  analyzeBondDuration,
+  analyzeRealEstateDeal,
+  buildRealEstatePresetInputs,
+  compareRealEstateClasses,
+  compareRealEstateMarkets,
+  getRealEstateMarket,
+  summarizeResidentialVsCommercial,
+} from "./real-assets-credit";
+import { RealEstatePropertyClass } from "../types";
 import { simulateVenturePowerLaw } from "./venture-powerlaw";
 import {
   analyzeHedgeFundRisk,
@@ -127,10 +136,20 @@ export const UNIVERSAL_QUANT_TOOLS: FunctionDeclaration[] = [
   {
     name: "analyze_real_estate_deal",
     description:
-      "Models a leveraged real estate or real-asset investment: NOI, Going-in Cap Rate, DSCR, Cash-on-Cash return, and 5-10Y Levered IRR.",
+      "Underwrites a residential or commercial real estate investment across property classes and markets: NOI, Going-in Cap Rate vs. Benchmark, DSCR, Debt Yield, Break-Even Occupancy, Lender Covenants, Cash-on-Cash, Unlevered/Levered/After-Tax IRR.",
     parameters: {
       type: Type.OBJECT,
       properties: {
+        propertyClass: {
+          type: Type.STRING,
+          description:
+            "Optional property class override: single_family, small_multifamily, apartments_multifamily, student_housing, short_term_rental, industrial_logistics, retail_nnn, office_class_a, mixed_use, or data_center_specialty.",
+        },
+        marketId: {
+          type: Type.STRING,
+          description:
+            "Optional market id override: sudbury-on, toronto-gta, calgary-ab, vancouver-bc, austin-tx, miami-fl, phoenix-az, new-york-ny, chicago-il, or london-uk.",
+        },
         mortgageRateAdjustmentPct: {
           type: Type.NUMBER,
           description: "Optional shift in mortgage interest rate in percentage points.",
@@ -138,6 +157,30 @@ export const UNIVERSAL_QUANT_TOOLS: FunctionDeclaration[] = [
         exitCapAdjustmentPct: {
           type: Type.NUMBER,
           description: "Optional shift in exit cap rate in percentage points.",
+        },
+      },
+    },
+  },
+  {
+    name: "compare_real_estate_markets_and_classes",
+    description:
+      "Compares all 10 Residential & Commercial real estate classes inside a market AND compares 10 North American/Global markets for a given property class, returning top-ranked classes, markets, and Residential vs. Commercial allocation tilt.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        marketId: {
+          type: Type.STRING,
+          description:
+            "Target market id for cross-class evaluation (e.g. sudbury-on, calgary-ab, austin-tx, toronto-gta, chicago-il).",
+        },
+        propertyClass: {
+          type: Type.STRING,
+          description:
+            "Target property class for cross-market screening (e.g. small_multifamily, industrial_logistics, retail_nnn, apartments_multifamily).",
+        },
+        rateOffsetPct: {
+          type: Type.NUMBER,
+          description: "Optional interest rate stress shift in percentage points (e.g. +1.0 for +100bps shock).",
         },
       },
     },
@@ -369,31 +412,67 @@ export function executeUniversalQuantTool(
   }
 
   if (name === "analyze_real_estate_deal") {
-    const baseInput = request.realEstateInputs ?? {
-      propertyName: request.title,
-      purchasePrice: 650000,
-      downPaymentPct: 20,
-      closingCostsPct: 3,
-      grossAnnualRent: 62400,
-      vacancyRatePct: 5,
-      operatingExpenseRatioPct: 32,
-      mortgageRatePct: 5.25,
-      amortizationYears: 25,
-      annualRentGrowthPct: 3.0,
-      holdYears: 7,
-      exitCapRatePct: 6.25,
-    };
+    const classOverride =
+      typeof args.propertyClass === "string"
+        ? (args.propertyClass as RealEstatePropertyClass)
+        : undefined;
+    const marketOverride =
+      typeof args.marketId === "string" ? args.marketId : undefined;
+
+    const baseInput =
+      classOverride || marketOverride
+        ? buildRealEstatePresetInputs(
+            classOverride ?? request.realEstateInputs?.propertyClass ?? "small_multifamily",
+            marketOverride ?? request.realEstateInputs?.marketId ?? "sudbury-on"
+          )
+        : request.realEstateInputs ??
+          buildRealEstatePresetInputs("small_multifamily", "sudbury-on", 680000);
+
     const rateAdj =
       typeof args.mortgageRateAdjustmentPct === "number" ? args.mortgageRateAdjustmentPct : 0;
     const capAdj = typeof args.exitCapAdjustmentPct === "number" ? args.exitCapAdjustmentPct : 0;
-    const res = analyzeRealEstateDeal({
-      ...baseInput,
-      mortgageRatePct: Math.max(2, baseInput.mortgageRatePct + rateAdj),
-      exitCapRatePct: Math.max(3, baseInput.exitCapRatePct + capAdj),
-    });
+    const res = analyzeRealEstateDeal(
+      {
+        ...baseInput,
+        mortgageRatePct: Math.max(2, baseInput.mortgageRatePct + rateAdj),
+        exitCapRatePct: Math.max(3, baseInput.exitCapRatePct + capAdj),
+      },
+      { includeComparisons: false }
+    );
+    const breaches = res.lenderCovenantChecks.filter((c) => c.status === "BREACH").length;
     return {
-      payload: { ...res, sensitivityGrid: undefined },
-      summary: `Cap Rate ${res.goingInCapRatePct}% | DSCR ${res.dscr}x | Cash-on-Cash ${res.cashOnCashPct}% | Levered IRR ${res.leveredIrrPct}% (${res.equityMultiple}x EM on ${formatCurrency(res.totalCashInvested)} cash)`,
+      payload: { ...res, sensitivityGrid: undefined, yearlyCashFlows: undefined },
+      summary: `${res.propertyClassLabel} (${res.marketName}, ${res.category.toUpperCase()}): Cap ${res.goingInCapRatePct}% (${res.capRateSpreadToBenchmarkBps >= 0 ? "+" : ""}${res.capRateSpreadToBenchmarkBps}bps vs mkt) | DSCR ${res.dscr}x | DY ${res.debtYieldPct}% | CoC ${res.cashOnCashPct}% | Lev IRR ${res.leveredIrrPct}% (Unlev ${res.unleveredIrrPct}%, ${res.equityMultiple}x EM, ${breaches} covenant breaches)`,
+    };
+  }
+
+  if (name === "compare_real_estate_markets_and_classes") {
+    const marketId =
+      typeof args.marketId === "string"
+        ? args.marketId
+        : request.realEstateInputs?.marketId ?? "sudbury-on";
+    const propertyClass = (
+      typeof args.propertyClass === "string"
+        ? args.propertyClass
+        : request.realEstateInputs?.propertyClass ?? "small_multifamily"
+    ) as RealEstatePropertyClass;
+    const rateOffset =
+      typeof args.rateOffsetPct === "number" ? args.rateOffsetPct : 0;
+
+    const market = getRealEstateMarket(marketId);
+    const classes = compareRealEstateClasses(market.id, rateOffset);
+    const markets = compareRealEstateMarkets(propertyClass, rateOffset);
+    const resiVsComm = summarizeResidentialVsCommercial(classes, market);
+
+    return {
+      payload: {
+        market: market.name,
+        propertyClass,
+        topClasses: classes.slice(0, 5),
+        topMarkets: markets.slice(0, 5),
+        residentialVsCommercial: resiVsComm,
+      },
+      summary: `RE Matrix (${market.name}): Top Class ${classes[0].shortLabel} (${classes[0].leveredIrrPct}% IRR, ${classes[0].goingInCapRatePct}% Cap) | Top Market for ${propertyClass}: ${markets[0].marketName} (Score ${markets[0].compositeScore}/100, ${markets[0].leveredIrrPct}% IRR) | Tilt: ${resiVsComm.recommendedTilt} (Resi ${resiVsComm.residentialAvgIrrPct}% vs Comm ${resiVsComm.commercialAvgIrrPct}% IRR)`,
     };
   }
 

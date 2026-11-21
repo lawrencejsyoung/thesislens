@@ -1,174 +1,21 @@
-import {
-  BondInputs,
-  BondValuationResult,
-  RealEstateInputs,
-  RealEstateSensitivityCell,
-  RealEstateValuationResult,
-} from "../types";
+import { BondInputs, BondValuationResult } from "../types";
+
+export {
+  analyzeRealEstateDeal,
+  buildRealEstatePresetInputs,
+  compareRealEstateClasses,
+  compareRealEstateMarkets,
+  getBenchmarkCapRatePct,
+  getRealEstateClass,
+  getRealEstateMarket,
+  REAL_ESTATE_CLASSES,
+  REAL_ESTATE_MARKETS,
+  summarizeResidentialVsCommercial,
+} from "./real-estate-engine";
 
 function round(val: number, decimals = 2): number {
   const factor = Math.pow(10, decimals);
   return Math.round(val * factor) / factor;
-}
-
-/**
- * Standard monthly mortgage payment & remaining balance after N years
- */
-function mortgageMath(
-  principal: number,
-  annualRatePct: number,
-  amortYears: number,
-  holdYears: number
-): { annualDebtService: number; remainingBalance: number } {
-  if (principal <= 0) {
-    return { annualDebtService: 0, remainingBalance: 0 };
-  }
-  const r = Math.max(0.0001, annualRatePct / 100 / 12);
-  const n = Math.max(12, Math.round(amortYears * 12));
-  const k = Math.min(n, Math.round(holdYears * 12));
-
-  const factor = Math.pow(1 + r, n);
-  const monthlyPayment = (principal * (r * factor)) / (factor - 1);
-  const remFactor = Math.pow(1 + r, k);
-  const remainingBalance =
-    principal * ((factor - remFactor) / (factor - 1));
-
-  return {
-    annualDebtService: monthlyPayment * 12,
-    remainingBalance: Math.max(0, remainingBalance),
-  };
-}
-
-/**
- * Bisection solver for Internal Rate of Return (IRR) on annual cash flows
- */
-function solveIrr(cashFlows: number[]): number {
-  let low = -0.6;
-  let high = 1.5;
-  const npv = (rate: number) =>
-    cashFlows.reduce((sum, cf, t) => sum + cf / Math.pow(1 + rate, t), 0);
-
-  if (npv(low) < 0) return -50;
-  for (let i = 0; i < 60; i++) {
-    const mid = (low + high) / 2;
-    if (npv(mid) > 0) {
-      low = mid;
-    } else {
-      high = mid;
-    }
-  }
-  return ((low + high) / 2) * 100;
-}
-
-function evaluateRealEstateCore(
-  inputs: RealEstateInputs,
-  mortgageRateOverride?: number,
-  exitCapOverride?: number
-) {
-  const rate = mortgageRateOverride ?? inputs.mortgageRatePct;
-  const exitCap = Math.max(2.5, exitCapOverride ?? inputs.exitCapRatePct);
-  const downPayment = (inputs.purchasePrice * inputs.downPaymentPct) / 100;
-  const closingCosts = (inputs.purchasePrice * inputs.closingCostsPct) / 100;
-  const totalCashInvested = Math.max(1000, downPayment + closingCosts);
-  const loanAmount = Math.max(0, inputs.purchasePrice - downPayment);
-  const holdYears = Math.max(1, Math.min(30, Math.round(inputs.holdYears)));
-
-  const { annualDebtService, remainingBalance } = mortgageMath(
-    loanAmount,
-    rate,
-    inputs.amortizationYears,
-    holdYears
-  );
-
-  const effectiveGrossY1 =
-    inputs.grossAnnualRent * (1 - inputs.vacancyRatePct / 100);
-  const year1Noi =
-    effectiveGrossY1 * (1 - inputs.operatingExpenseRatioPct / 100);
-  const year1CashFlow = year1Noi - annualDebtService;
-
-  const cashFlows: number[] = [-totalCashInvested];
-  let currentNoi = year1Noi;
-  for (let y = 1; y <= holdYears; y++) {
-    if (y > 1) {
-      currentNoi = currentNoi * (1 + inputs.annualRentGrowthPct / 100);
-    }
-    cashFlows.push(currentNoi - annualDebtService);
-  }
-
-  // Exit valuation based on forward Year N+1 NOI / Exit Cap Rate (less 4% selling costs)
-  const forwardExitNoi = currentNoi * (1 + inputs.annualRentGrowthPct / 100);
-  const projectedExitValue = forwardExitNoi / (exitCap / 100);
-  const netSaleProceeds = projectedExitValue * 0.96 - remainingBalance;
-  cashFlows[cashFlows.length - 1] += netSaleProceeds;
-
-  const totalDistributions = cashFlows
-    .slice(1)
-    .reduce((sum, cf) => sum + cf, 0);
-  const leveredIrrPct = solveIrr(cashFlows);
-  const cashOnCashPct = (year1CashFlow / totalCashInvested) * 100;
-
-  return {
-    totalCashInvested,
-    loanAmount,
-    year1Noi,
-    annualDebtService,
-    year1CashFlow,
-    goingInCapRatePct: (year1Noi / Math.max(1, inputs.purchasePrice)) * 100,
-    cashOnCashPct,
-    dscr: annualDebtService > 0 ? year1Noi / annualDebtService : 9.9,
-    grossRentMultiplier: inputs.purchasePrice / Math.max(1, inputs.grossAnnualRent),
-    projectedExitValue,
-    remainingBalance,
-    leveredIrrPct,
-    equityMultiple: totalDistributions / totalCashInvested,
-  };
-}
-
-/**
- * Deterministic Real Estate Pro Forma, DSCR & Levered IRR Engine
- */
-export function analyzeRealEstateDeal(
-  inputs: RealEstateInputs
-): RealEstateValuationResult {
-  const base = evaluateRealEstateCore(inputs);
-
-  const rateSteps = [-1.0, 0, 1.0].map((d) =>
-    round(Math.max(2.0, inputs.mortgageRatePct + d), 2)
-  );
-  const exitCapSteps = [-0.75, 0, 0.75].map((d) =>
-    round(Math.max(3.0, inputs.exitCapRatePct + d), 2)
-  );
-
-  const sensitivityGrid: RealEstateSensitivityCell[] = [];
-  for (const r of rateSteps) {
-    for (const c of exitCapSteps) {
-      const res = evaluateRealEstateCore(inputs, r, c);
-      sensitivityGrid.push({
-        mortgageRatePct: r,
-        exitCapRatePct: c,
-        leveredIrrPct: round(res.leveredIrrPct, 1),
-        cashOnCashPct: round(res.cashOnCashPct, 1),
-      });
-    }
-  }
-
-  return {
-    propertyName: inputs.propertyName,
-    totalCashInvested: Math.round(base.totalCashInvested),
-    loanAmount: Math.round(base.loanAmount),
-    year1Noi: Math.round(base.year1Noi),
-    annualDebtService: Math.round(base.annualDebtService),
-    year1CashFlow: Math.round(base.year1CashFlow),
-    goingInCapRatePct: round(base.goingInCapRatePct, 2),
-    cashOnCashPct: round(base.cashOnCashPct, 2),
-    dscr: round(base.dscr, 2),
-    grossRentMultiplier: round(base.grossRentMultiplier, 1),
-    projectedExitValue: Math.round(base.projectedExitValue),
-    remainingLoanAtExit: Math.round(base.remainingBalance),
-    leveredIrrPct: round(base.leveredIrrPct, 1),
-    equityMultiple: round(base.equityMultiple, 2),
-    sensitivityGrid,
-  };
 }
 
 /**
