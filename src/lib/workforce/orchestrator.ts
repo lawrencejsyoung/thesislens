@@ -1706,6 +1706,10 @@ ${quant.predictionValuation ? `- Prediction Bet: ${quant.predictionValuation.sid
 ${quant.optionsValuation ? `- Options: ${quant.optionsValuation.underlying} ${quant.optionsValuation.strategy}, Debit $${quant.optionsValuation.netDebitPerShare}, PoP ${quant.optionsValuation.probabilityOfProfitPct}%, Δ=${quant.optionsValuation.greeks.delta}` : ""}
 ${quant.realAssetValuation ? `- Real Estate: Cap ${quant.realAssetValuation.goingInCapRatePct}%, DSCR ${quant.realAssetValuation.dscr}x, Levered IRR ${quant.realAssetValuation.leveredIrrPct}%` : ""}
 ${quant.ventureValuation ? `- Venture SAFE: Mean ${quant.ventureValuation.meanMoic}x vs Median ${quant.ventureValuation.medianMoic}x MOIC, IRR ${quant.ventureValuation.expectedIrrPct}%` : ""}
+${quant.cfaForensics ? `- CFA Forensics (${quant.cfaForensics.ticker}): Beneish M=${quant.cfaForensics.beneishMScore} (${quant.cfaForensics.beneishFlag}), Altman Z=${quant.cfaForensics.altmanZScore} (${quant.cfaForensics.altmanZone}), DuPont ROE ${quant.cfaForensics.dupontRoe.roePct}%, Hamada WACC ${quant.cfaForensics.bottomUpWacc.waccPct}%` : ""}
+${quant.hedgeFundRisk ? `- $100M Hedge Fund Book: Gross ${quant.hedgeFundRisk.grossExposurePct}% / Net ${quant.hedgeFundRisk.netExposurePct}% (Beta-Adj ${quant.hedgeFundRisk.betaAdjustedNetPct}%), 99% 1M CVaR ${quant.hedgeFundRisk.cvar99MonthlyPct}%, Sharpe ${quant.hedgeFundRisk.sharpeRatio}, Sortino ${quant.hedgeFundRisk.sortinoRatio}` : ""}
+${quant.liquidityCompliance ? `- Liquidity & Pre-Trade Compliance: ${quant.liquidityCompliance.overallStatus} | Weighted DTL ${quant.liquidityCompliance.weightedDaysToLiquidate}d | Rebalance Slippage ${quant.liquidityCompliance.totalEstimatedSlippageBps} bps` : ""}
+${intelSignals.length > 0 ? `- Multi-Source Intelligence (${intelSignals.length} feeds): ${intelSignals.slice(0, 3).map((s) => `[${s.sourceType.toUpperCase()}] ${s.title} (${s.sentimentScore >= 0 ? "+" : ""}${s.sentimentScore})`).join(" | ")}` : ""}
 
 Specialist Digest:
 ${specialistDigest}
