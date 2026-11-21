@@ -8,6 +8,13 @@ import {
   MonteCarloResult,
   PortfolioMetrics,
 } from "./types";
+import { stressTestCrossAssetShocks } from "./quant/cross-asset-stress";
+
+export { evaluatePredictionBet } from "./quant/prediction-ev";
+export { priceOptionStrategy, priceBlackScholesOption } from "./quant/options-bsm";
+export { analyzeRealEstateDeal, analyzeBondDuration } from "./quant/real-assets-credit";
+export { simulateVenturePowerLaw } from "./quant/venture-powerlaw";
+export { stressTestCrossAssetShocks } from "./quant/cross-asset-stress";
 
 const RISK_FREE_RATE = 0.042; // 4.2% 10Y Treasury baseline
 
@@ -289,128 +296,11 @@ export function runMonteCarloSimulation(params: {
 }
 
 /**
- * 4. Macro Shock Stress-Testing Engine
+ * 4. Universal Cross-Asset Macro Shock Stress-Testing Engine (6 Institutional Regimes)
  */
-const MACRO_REGIMES: {
-  id: string;
-  name: string;
-  description: string;
-  sectorShocks: Record<Holding["sector"], number>;
-  recommendedHedge: string;
-}[] = [
-  {
-    id: "rate-hike-shock",
-    name: "Sticky Inflation & +100bps Rate Shock",
-    description:
-      "Central banks hike rates unexpectedly; long-duration growth multiples compress while commodities & short-duration yields hold up.",
-    sectorShocks: {
-      Technology: -18.5,
-      "Mining & Materials": 6.5,
-      Energy: 9.0,
-      Financials: -4.0,
-      Healthcare: -5.5,
-      Industrials: -8.0,
-      "Fixed Income": -6.5,
-      Consumer: -11.0,
-    },
-    recommendedHedge: "Rotate 8-12% into short-duration T-bills, Energy, or Gold/Critical Minerals.",
-  },
-  {
-    id: "ai-capex-pause",
-    name: "AI Capex Digestion & Tech Correction",
-    description:
-      "Hyperscalers slow GPU spending for 2 quarters; high-multiple semiconductor & cloud leaders re-rate sharply.",
-    sectorShocks: {
-      Technology: -26.0,
-      "Mining & Materials": -5.0,
-      Energy: -3.0,
-      Financials: -4.5,
-      Healthcare: 3.5,
-      Industrials: -7.5,
-      "Fixed Income": 4.0,
-      Consumer: -4.0,
-    },
-    recommendedHedge: "Pair high-beta Tech with Healthcare defensives or out-of-the-money QQQ puts.",
-  },
-  {
-    id: "global-recession",
-    name: "Hard Landing & Credit Spread Widening",
-    description:
-      "GDP contracts 1.5%, unemployment rises, cyclical industrial and mining demand falls while Treasury bonds rally.",
-    sectorShocks: {
-      Technology: -19.0,
-      "Mining & Materials": -22.0,
-      Energy: -24.0,
-      Financials: -21.0,
-      Healthcare: -4.0,
-      Industrials: -20.0,
-      "Fixed Income": 9.5,
-      Consumer: -15.0,
-    },
-    recommendedHedge: "Increase Investment-Grade Bonds / Treasury allocation to >= 20% dry powder.",
-  },
-  {
-    id: "commodity-supercycle",
-    name: "EV Grid & Critical Minerals Supercycle",
-    description:
-      "Electrification & data-center power demand drive nickel, copper, and energy prices sharply higher (Northern Ontario tailwind).",
-    sectorShocks: {
-      Technology: 7.5,
-      "Mining & Materials": 28.0,
-      Energy: 21.0,
-      Financials: 5.0,
-      Healthcare: 1.5,
-      Industrials: 14.0,
-      "Fixed Income": -3.0,
-      Consumer: -2.5,
-    },
-    recommendedHedge: "Maintain core exposure to Canadian critical minerals (Nickel/Copper/Uranium) & grid industrials.",
-  },
-];
-
 export function stressTestMacroShocks(
   holdings: Holding[],
   totalCapital: number
 ): MacroShockScenarioResult[] {
-  const totalWeight = holdings.reduce((s, h) => s + Math.max(0, h.weightPct), 0) || 100;
-
-  return MACRO_REGIMES.map((regime) => {
-    let weightedImpact = 0;
-    let worstHolding = holdings[0]?.ticker ?? "N/A";
-    let worstImpact = Infinity;
-    let bestHolding = holdings[0]?.ticker ?? "N/A";
-    let bestImpact = -Infinity;
-
-    for (const h of holdings) {
-      const w = Math.max(0, h.weightPct) / totalWeight;
-      const baseSectorShock = regime.sectorShocks[h.sector] ?? -8;
-      // Scale shock slightly by beta for negative shocks
-      const betaAdjusted =
-        baseSectorShock < 0
-          ? baseSectorShock * (0.65 + 0.35 * Math.min(2.2, h.beta))
-          : baseSectorShock * (0.8 + 0.2 * Math.min(1.8, h.beta));
-
-      weightedImpact += w * betaAdjusted;
-
-      if (betaAdjusted < worstImpact) {
-        worstImpact = betaAdjusted;
-        worstHolding = `${h.ticker} (${round(betaAdjusted, 1)}%)`;
-      }
-      if (betaAdjusted > bestImpact) {
-        bestImpact = betaAdjusted;
-        bestHolding = `${h.ticker} (${betaAdjusted >= 0 ? "+" : ""}${round(betaAdjusted, 1)}%)`;
-      }
-    }
-
-    return {
-      id: regime.id,
-      name: regime.name,
-      description: regime.description,
-      portfolioImpactPct: round(weightedImpact, 1),
-      dollarImpact: Math.round((totalCapital * weightedImpact) / 100),
-      worstHitHolding: worstHolding,
-      bestHedgeHolding: bestHolding,
-      recommendedHedge: regime.recommendedHedge,
-    };
-  });
+  return stressTestCrossAssetShocks(holdings, totalCapital);
 }
