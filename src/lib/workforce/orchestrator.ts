@@ -8,6 +8,7 @@ import {
   CioInvestmentMemo,
   CompleteAnalysisResult,
   ExpressionVehicle,
+  IntelSignal,
   Jurisdiction,
   LiveMarketQuote,
   RoutingPlan,
@@ -17,11 +18,15 @@ import {
 } from "../types";
 import {
   analyzeBondDuration,
+  analyzeHedgeFundRisk,
   analyzePortfolioMetrics,
   analyzeRealEstateDeal,
+  buildDefaultForensicInputs,
   evaluatePredictionBet,
   priceOptionStrategy,
+  runCfaForensicAnalysis,
   runDcfValuation,
+  runLiquidityAndComplianceCheck,
   runMonteCarloSimulation,
   simulateVenturePowerLaw,
   stressTestMacroShocks,
@@ -31,6 +36,7 @@ import {
   UNIVERSAL_QUANT_TOOLS,
 } from "../quant/tool-registry";
 import { searchPredictionMarkets } from "../adapters/market-data";
+import { fetchIntelligenceCorpus } from "../adapters/intel-ingestion";
 
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -254,6 +260,23 @@ export function computeUniversalQuantBundle(
     );
   }
 
+  // Always compute CFA Charterholder Forensics, L/S Hedge Fund Risk Book & Pre-Trade Compliance
+  const forensicInputs =
+    request.cfaForensicInputs ??
+    buildDefaultForensicInputs(
+      request.dcfInputs.ticker,
+      request.dcfInputs.currentPrice * request.dcfInputs.sharesOutstandingBillions
+    );
+  bundle.cfaForensics = runCfaForensicAnalysis(forensicInputs);
+  bundle.hedgeFundRisk = analyzeHedgeFundRisk(request.holdings, request.capital);
+  bundle.liquidityCompliance = runLiquidityAndComplianceCheck(
+    request.holdings,
+    request.capital,
+    bundle.hedgeFundRisk,
+    bundle.cfaForensics,
+    15
+  );
+
   return bundle;
 }
 
@@ -302,13 +325,35 @@ function buildRoutingPlan(
     },
   ];
 
-  if (mode === "portfolio" || mode === "any_outcome" || mode === "options") {
+  if (mode === "portfolio" || mode === "hedge_fund" || mode === "any_outcome" || mode === "options") {
     activatedSpecialists.push({
       role: "equity_quant",
       label: "Equity & Cashflow Quant",
       reason: `Run 5Y DCF on ${request.dcfInputs.ticker} & portfolio factor analysis`,
       parallel: true,
     });
+  }
+  if (mode === "hedge_fund" || request.capital >= 1_000_000 || request.cfaForensicInputs) {
+    activatedSpecialists.push(
+      {
+        role: "cfa_forensic",
+        label: "CFA Forensic & Quality-of-Earnings Analyst",
+        reason: `Audit ${request.dcfInputs.ticker} Beneish M-Score, Altman Z-Score, DuPont ROE & Hamada WACC`,
+        parallel: true,
+      },
+      {
+        role: "risk_officer",
+        label: "Chief Risk & Compliance Officer ($100M Book)",
+        reason: "Compute L/S Gross/Net, 99% CVaR, Factor Attribution, ADV Liquidity & Compliance Gates",
+        parallel: true,
+      },
+      {
+        role: "intel_analyst",
+        label: "Multi-Source Intelligence Analyst",
+        reason: "Synthesize ingested newsletters, news wires, podcasts & SEC filings into alpha/risk signals",
+        parallel: true,
+      }
+    );
   }
   if (mode === "prediction" || mode === "any_outcome") {
     activatedSpecialists.push({
@@ -614,6 +659,7 @@ async function runUniversalDemoTrace(
   routingPlan: RoutingPlan,
   quant: UniversalQuantBundle,
   vehicles: ExpressionVehicle[],
+  intelSignals: IntelSignal[],
   emit: (event: StreamEvent) => void
 ): Promise<CompleteAnalysisResult> {
   const modelUsed = "gemini-2.5-flash (Universal Workforce Demo Trace)";
@@ -634,6 +680,7 @@ async function runUniversalDemoTrace(
   });
   emit({ type: "universal_quant_ready", quant });
   emit({ type: "access_vehicles", vehicles });
+  emit({ type: "intel_ready", signals: intelSignals });
 
   const turns: AgentDebateTurn[] = [];
   const worstShock = [...quant.macroShocks].sort(
@@ -827,6 +874,122 @@ async function runUniversalDemoTrace(
       turns.push(reTurn);
       emit({ type: "agent_turn", turn: reTurn });
     }
+  }
+
+  // Stage 2E: Institutional Hedge Fund & CFA Charterholder Specialists
+  if (
+    (routingPlan.analysisMode === "hedge_fund" ||
+      request.capital >= 1_000_000 ||
+      Boolean(request.cfaForensicInputs)) &&
+    quant.cfaForensics &&
+    quant.hedgeFundRisk &&
+    quant.liquidityCompliance
+  ) {
+    await sleep(220);
+    const f = quant.cfaForensics;
+    const hf = quant.hedgeFundRisk;
+    const lc = quant.liquidityCompliance;
+    const avgIntelSent =
+      intelSignals.length > 0
+        ? Math.round(
+            intelSignals.reduce((s, item) => s + item.sentimentScore, 0) /
+              intelSignals.length
+          )
+        : 0;
+
+    const cfaTurn: AgentDebateTurn = {
+      id: "turn-cfa-forensic",
+      role: "cfa_forensic",
+      agentName: "Specialist · CFA Forensic & Quality-of-Earnings Analyst",
+      title: `CFA Level II/III Audit: ${f.ticker} (Beneish M=${f.beneishMScore} · Altman Z=${f.altmanZScore})`,
+      timestamp: nowTime(),
+      status: "complete",
+      parallelGroup: "Stage 2 · Parallel Specialists",
+      summary: `${f.ticker} registers a Beneish M-Score of ${f.beneishMScore} (${f.beneishFlag}) and Altman Z-Score of ${f.altmanZScore} (${f.altmanZone} Zone), with ${f.dupontRoe.roePct}% DuPont ROE and ${f.bottomUpWacc.waccPct}% Bottom-Up Hamada WACC.`,
+      keyPoints: [
+        `DuPont ROE Decomposition: ${f.dupontRoe.netMarginPct}% Net Margin × ${f.dupontRoe.assetTurnover}x Asset Turnover × ${f.dupontRoe.financialLeverage}x Leverage.`,
+        `Cash Quality: Sloan Accruals Ratio is ${f.sloanAccrualsRatioPct}% with ${f.cashConversionRatio}x OCF/Net Income cash conversion.`,
+        f.redFlags.length > 0
+          ? `Forensic Flag: ${f.redFlags[0]}`
+          : `Zero forensic accounting red flags triggered; earnings are cash-backed.`,
+      ],
+      toolCalls: [
+        {
+          id: "tc-cfa-1",
+          toolName: "run_cfa_forensic_accounting",
+          args: {},
+          resultSummary: `M=${f.beneishMScore} (${f.beneishFlag}) | Z=${f.altmanZScore} (${f.altmanZone}) | ROE ${f.dupontRoe.roePct}% | WACC ${f.bottomUpWacc.waccPct}%`,
+          durationMs: 7,
+        },
+      ],
+      confidencePct: 91,
+    };
+    turns.push(cfaTurn);
+    emit({ type: "agent_turn", turn: cfaTurn });
+
+    await sleep(200);
+    const riskTurn: AgentDebateTurn = {
+      id: "turn-risk-officer",
+      role: "risk_officer",
+      agentName: "Specialist · Chief Risk & Compliance Officer ($100M Book)",
+      title: `L/S Exposure (${hf.grossExposurePct}% Gross / ${hf.netExposurePct}% Net) · Compliance: ${lc.overallStatus}`,
+      timestamp: nowTime(),
+      status: "complete",
+      parallelGroup: "Stage 2 · Parallel Specialists",
+      summary: `On ${formatCurrency(hf.aumUsd)} AUM, the book runs ${hf.longExposurePct}% Long / ${hf.shortExposurePct}% Short (Beta-Adj Net ${hf.betaAdjustedNetPct}%), with 99% 1M CVaR of ${hf.cvar99MonthlyPct}% (${formatCurrency(hf.cvar99MonthlyUsd)}) and ${lc.weightedDaysToLiquidate}d weighted days-to-liquidate.`,
+      keyPoints: [
+        `Risk-Adjusted Performance: Expected Net Return ${hf.expectedNetReturnPct}% (after ${hf.shortBorrowDragBps} bps short borrow drag) | Sharpe ${hf.sharpeRatio} | Sortino ${hf.sortinoRatio} | Calmar ${hf.calmarRatio}.`,
+        `Market Impact (Almgren-Chriss): Full book rebalance incurs ~${lc.totalEstimatedSlippageBps} bps (${formatCurrency(lc.totalEstimatedRebalanceSlippageUsd)}) at 15% ADV cap; ${lc.illiquidPctOfNav}% NAV in >5d illiquid bucket.`,
+        `Pre-Trade Compliance (${lc.overallStatus}): ${lc.complianceChecks.filter((c) => c.status === "PASS").length}/${lc.complianceChecks.length} institutional gates passed; Idiosyncratic Alpha Risk = ${hf.idiosyncraticRiskPct}%.`,
+      ],
+      toolCalls: [
+        {
+          id: "tc-risk-1",
+          toolName: "run_hedge_fund_risk_book",
+          args: { aumUsdOverride: hf.aumUsd },
+          resultSummary: `Gross ${hf.grossExposurePct}% / Net ${hf.netExposurePct}% | 99% CVaR ${hf.cvar99MonthlyPct}% | Sharpe ${hf.sharpeRatio}`,
+          durationMs: 11,
+        },
+        {
+          id: "tc-comp-1",
+          toolName: "run_liquidity_and_compliance_check",
+          args: { maxAdvParticipationPct: 15 },
+          resultSummary: `Compliance ${lc.overallStatus} | Weighted DTL ${lc.weightedDaysToLiquidate}d | Slippage ${lc.totalEstimatedSlippageBps} bps`,
+          durationMs: 8,
+        },
+      ],
+      confidencePct: 93,
+    };
+    turns.push(riskTurn);
+    emit({ type: "agent_turn", turn: riskTurn });
+
+    await sleep(180);
+    const intelTurn: AgentDebateTurn = {
+      id: "turn-intel-analyst",
+      role: "intel_analyst",
+      agentName: "Specialist · Multi-Source Intelligence Analyst",
+      title: `Synthesized ${intelSignals.length} Signals (Newsletters, Podcasts, SEC Filings & Macro)`,
+      timestamp: nowTime(),
+      status: "complete",
+      parallelGroup: "Stage 2 · Parallel Specialists",
+      summary: `Ingested ${intelSignals.length} unstructured intelligence feeds across newsletters, podcasts, financial wires, and regulatory filings with net consensus sentiment of ${avgIntelSent >= 0 ? "+" : ""}${avgIntelSent}/100.`,
+      keyPoints: intelSignals.slice(0, 3).map(
+        (sig) =>
+          `[${sig.sourceType.toUpperCase()} · ${sig.sourceName}] ${sig.title} (Sentiment ${sig.sentimentScore >= 0 ? "+" : ""}${sig.sentimentScore}, Novelty ${sig.noveltyScore}%).`
+      ),
+      toolCalls: [
+        {
+          id: "tc-intel-1",
+          toolName: "query_intelligence_corpus",
+          args: { sourceFilter: "all" },
+          resultSummary: `${intelSignals.length} signals parsed (avg sentiment ${avgIntelSent >= 0 ? "+" : ""}${avgIntelSent})`,
+          durationMs: 5,
+        },
+      ],
+      confidencePct: 86,
+    };
+    turns.push(intelTurn);
+    emit({ type: "agent_turn", turn: intelTurn });
   }
 
   // Stage 3: Bull & Bear Debate
@@ -1040,6 +1203,7 @@ async function runUniversalDemoTrace(
     request,
     routingPlan,
     expressionVehicles: vehicles,
+    intelSignals,
     portfolioMetrics: quant.portfolioMetrics,
     dcfResult: quant.dcfResult,
     monteCarlo: quant.monteCarlo,
@@ -1064,27 +1228,54 @@ export async function runUniversalWorkforce(
   const mode = resolveAnalysisMode(request);
   const quant = computeUniversalQuantBundle(request, mode);
 
-  // Attempt read-only live prediction market discovery for relevant modes (non-blocking 3s timeout)
+  // Attempt read-only live prediction market discovery + multi-source intelligence corpus in parallel
   let liveMarkets: LiveMarketQuote[] = [];
   let liveMarketsUsed = false;
-  if (mode === "any_outcome" || mode === "prediction") {
-    try {
-      const searchRes = await searchPredictionMarkets(
-        request.predictionInputs?.question || request.title
-      );
-      liveMarkets = searchRes.markets;
-      liveMarketsUsed = searchRes.liveCount > 0;
-    } catch {
-      liveMarkets = [];
+  const tickers = request.holdings.map((h) => h.ticker);
+
+  const [marketSearchRes, intelRes] = await Promise.all([
+    mode === "any_outcome" || mode === "prediction"
+      ? searchPredictionMarkets(request.predictionInputs?.question || request.title).catch(() => ({
+          markets: [] as LiveMarketQuote[],
+          liveCount: 0,
+        }))
+      : Promise.resolve({ markets: [] as LiveMarketQuote[], liveCount: 0 }),
+    fetchIntelligenceCorpus(`${request.title} ${request.thesisPrompt}`, tickers).catch(() => ({
+      signals: [] as IntelSignal[],
+      liveCount: 0,
+    })),
+  ]);
+
+  liveMarkets = marketSearchRes.markets;
+  liveMarketsUsed = marketSearchRes.liveCount > 0;
+
+  // Merge any user-ingested custom signals (newsletters, podcasts, notes) at the front of the corpus
+  const seenIds = new Set<string>();
+  const intelSignals: IntelSignal[] = [];
+  for (const sig of [...(request.intelSignals ?? []), ...intelRes.signals]) {
+    if (!seenIds.has(sig.id)) {
+      seenIds.add(sig.id);
+      intelSignals.push(sig);
     }
   }
+  const enrichedRequest: AnalysisRequestPayload = {
+    ...request,
+    intelSignals,
+  };
 
-  const routingPlan = buildRoutingPlan(request, mode, liveMarketsUsed);
-  const vehicles = buildExpressionVehicles(request, quant, liveMarkets);
+  const routingPlan = buildRoutingPlan(enrichedRequest, mode, liveMarketsUsed);
+  const vehicles = buildExpressionVehicles(enrichedRequest, quant, liveMarkets);
 
   const effectiveKey = apiKey?.trim() || process.env.GEMINI_API_KEY?.trim();
-  if (!effectiveKey || request.forceDemoMode) {
-    return runUniversalDemoTrace(request, routingPlan, quant, vehicles, emit);
+  if (!effectiveKey || enrichedRequest.forceDemoMode) {
+    return runUniversalDemoTrace(
+      enrichedRequest,
+      routingPlan,
+      quant,
+      vehicles,
+      intelSignals,
+      emit
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey: effectiveKey });
@@ -1107,6 +1298,7 @@ export async function runUniversalWorkforce(
   });
   emit({ type: "universal_quant_ready", quant });
   emit({ type: "access_vehicles", vehicles });
+  emit({ type: "intel_ready", signals: intelSignals });
 
   const holdingsSummary = request.holdings
     .map(
@@ -1329,6 +1521,99 @@ Thesis: ${request.thesisPrompt}`,
     );
   }
 
+  // 2E. Institutional CFA Forensic, Chief Risk Officer & Multi-Source Intelligence Specialists
+  if (mode === "hedge_fund" || enrichedRequest.capital >= 1_000_000 || enrichedRequest.cfaForensicInputs) {
+    stage2Tasks.push(
+      (async () => {
+        const res = await runGeminiAgentWithTools({
+          ai,
+          model,
+          systemInstruction:
+            "You are a CFA Charterholder Forensic Accounting & Quality-of-Earnings Analyst. You MUST call run_cfa_forensic_accounting first. Write 2 sharp sentences assessing earnings quality & intrinsic WACC, followed by 3 concise bullets citing exact Beneish M-Score, Altman Z-Score, DuPont ROE, and Sloan Accruals.",
+          userPrompt: `Perform a CFA Level II/III forensic quality-of-earnings audit on ${enrichedRequest.dcfInputs.ticker} for "${enrichedRequest.title}".`,
+          allowedToolNames: ["run_cfa_forensic_accounting"],
+          request: enrichedRequest,
+          quant,
+        });
+        return {
+          rawText: res.text,
+          turn: {
+            id: "turn-cfa-forensic",
+            role: "cfa_forensic",
+            agentName: "Specialist · CFA Forensic & Quality-of-Earnings Analyst",
+            title: `CFA Forensic Accounting & WACC Audit (${enrichedRequest.dcfInputs.ticker})`,
+            timestamp: nowTime(),
+            status: "complete",
+            parallelGroup: "Stage 2 · Parallel Specialists",
+            summary: res.text.split("\n")[0] || res.text.slice(0, 260),
+            keyPoints: extractBullets(res.text),
+            toolCalls: res.toolCalls,
+            confidencePct: 91,
+          },
+        };
+      })(),
+      (async () => {
+        const res = await runGeminiAgentWithTools({
+          ai,
+          model,
+          systemInstruction:
+            "You are the Chief Risk & Compliance Officer of a $100M Long/Short Hedge Fund. You MUST call run_hedge_fund_risk_book and run_liquidity_and_compliance_check. Write 2 sharp sentences on exposure, tail risk & compliance status, followed by 3 bullets citing exact Gross/Net %, 99% CVaR, Days-to-Liquidate, Slippage bps, and any BREACH/WARN rules.",
+          userPrompt: `Audit institutional risk, factor tilts, liquidity, and pre-trade compliance for "${enrichedRequest.title}" ($${enrichedRequest.capital} AUM).`,
+          allowedToolNames: [
+            "run_hedge_fund_risk_book",
+            "run_liquidity_and_compliance_check",
+          ],
+          request: enrichedRequest,
+          quant,
+        });
+        return {
+          rawText: res.text,
+          turn: {
+            id: "turn-risk-officer",
+            role: "risk_officer",
+            agentName: "Specialist · Chief Risk & Compliance Officer ($100M Book)",
+            title: "L/S Risk Book, 99% CVaR & Pre-Trade Compliance Audit",
+            timestamp: nowTime(),
+            status: "complete",
+            parallelGroup: "Stage 2 · Parallel Specialists",
+            summary: res.text.split("\n")[0] || res.text.slice(0, 260),
+            keyPoints: extractBullets(res.text),
+            toolCalls: res.toolCalls,
+            confidencePct: 93,
+          },
+        };
+      })(),
+      (async () => {
+        const res = await runGeminiAgentWithTools({
+          ai,
+          model,
+          systemInstruction:
+            "You are a Multi-Source Hedge Fund Intelligence Analyst. You MUST call query_intelligence_corpus first. Synthesize ingested newsletters, podcasts, news wires, SEC filings, and macro prints into 2 sharp sentences on consensus vs. variant perception, followed by 3 concise bullets citing specific sources and upcoming catalysts.",
+          userPrompt: `Synthesize all ingested intelligence signals relevant to "${enrichedRequest.title}".`,
+          allowedToolNames: ["query_intelligence_corpus"],
+          request: enrichedRequest,
+          quant,
+        });
+        return {
+          rawText: res.text,
+          turn: {
+            id: "turn-intel-analyst",
+            role: "intel_analyst",
+            agentName: "Specialist · Multi-Source Intelligence Analyst",
+            title: "Newsletters, Podcasts, News & SEC Filings Synthesis",
+            timestamp: nowTime(),
+            status: "complete",
+            parallelGroup: "Stage 2 · Parallel Specialists",
+            summary: res.text.split("\n")[0] || res.text.slice(0, 260),
+            keyPoints: extractBullets(res.text),
+            toolCalls: res.toolCalls,
+            confidencePct: 86,
+          },
+        };
+      })()
+    );
+  }
+
   const stage2Results = await Promise.all(stage2Tasks);
   for (const item of stage2Results) {
     debateTurns.push(item.turn);
@@ -1466,10 +1751,11 @@ Return strict JSON matching the schema. Include rebalancePlan for every holding 
     createdAt: new Date().toISOString(),
     mode: "live-gemini",
     modelUsed: model,
-    title: request.title,
-    request,
+    title: enrichedRequest.title,
+    request: enrichedRequest,
     routingPlan,
     expressionVehicles: vehicles,
+    intelSignals,
     portfolioMetrics: quant.portfolioMetrics,
     dcfResult: quant.dcfResult,
     monteCarlo: quant.monteCarlo,

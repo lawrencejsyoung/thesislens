@@ -24,9 +24,11 @@ import {
   Flame,
   PieChart,
   Rocket,
+  ShieldCheck,
   Sigma,
   Target,
 } from "lucide-react";
+import { CfaHedgeFundLab } from "@/components/CfaHedgeFundLab";
 import {
   AnalysisRequestPayload,
   DcfInputs,
@@ -55,6 +57,7 @@ interface QuantAnalyticsPanelProps {
 }
 
 type QuantTab =
+  | "hedge_fund"
   | "prediction"
   | "options"
   | "real_assets"
@@ -77,12 +80,20 @@ export function QuantAnalyticsPanel({
   universalQuant,
   requestPayload,
 }: QuantAnalyticsPanelProps) {
+  const hasHedgeFund = Boolean(universalQuant?.cfaForensics && universalQuant?.hedgeFundRisk);
   const hasPrediction = Boolean(universalQuant?.predictionValuation);
   const hasOptions = Boolean(universalQuant?.optionsValuation);
   const hasRealAssets = Boolean(universalQuant?.realAssetValuation);
   const hasVenture = Boolean(universalQuant?.ventureValuation);
 
-  const defaultTab: QuantTab = hasPrediction
+  const isHedgeFundPrimary =
+    hasHedgeFund &&
+    (requestPayload?.analysisMode === "hedge_fund" ||
+      (requestPayload?.capital ?? 0) >= 1_000_000);
+
+  const defaultTab: QuantTab = isHedgeFundPrimary
+    ? "hedge_fund"
+    : hasPrediction
     ? "prediction"
     : hasOptions
     ? "options"
@@ -314,6 +325,14 @@ export function QuantAnalyticsPanel({
       <div className="rounded-2xl border border-slate-800/90 bg-[#0d1424] p-4 shadow-xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
           <div className="flex flex-wrap items-center gap-1.5">
+            {hasHedgeFund && (
+              <TabButton
+                active={activeTab === "hedge_fund"}
+                onClick={() => setActiveTab("hedge_fund")}
+                icon={ShieldCheck}
+                label="CFA & $100M Fund Risk"
+              />
+            )}
             {hasPrediction && (
               <TabButton
                 active={activeTab === "prediction"}
@@ -371,6 +390,15 @@ export function QuantAnalyticsPanel({
             <span>Deterministic Quant Suite</span>
           </div>
         </div>
+
+        {/* TAB: CFA & $100M HEDGE FUND RISK LAB */}
+        {activeTab === "hedge_fund" && universalQuant?.cfaForensics && requestPayload && (
+          <CfaHedgeFundLab
+            holdings={requestPayload.holdings}
+            initialAumUsd={requestPayload.capital}
+            forensics={universalQuant.cfaForensics}
+          />
+        )}
 
         {/* TAB: PREDICTION MARKET EV & KELLY LAB */}
         {activeTab === "prediction" && livePrediction && (

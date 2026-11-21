@@ -15,6 +15,13 @@ export { priceOptionStrategy, priceBlackScholesOption } from "./quant/options-bs
 export { analyzeRealEstateDeal, analyzeBondDuration } from "./quant/real-assets-credit";
 export { simulateVenturePowerLaw } from "./quant/venture-powerlaw";
 export { stressTestCrossAssetShocks } from "./quant/cross-asset-stress";
+export {
+  buildDefaultForensicInputs,
+  runCfaForensicAnalysis,
+  analyzeHedgeFundRisk,
+  runLiquidityAndComplianceCheck,
+  getSignedWeightPct,
+} from "./quant/cfa-institutional";
 
 const RISK_FREE_RATE = 0.042; // 4.2% 10Y Treasury baseline
 

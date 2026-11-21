@@ -4,6 +4,7 @@ export type Jurisdiction = "Canada" | "US" | "Global";
 
 export type AnalysisMode =
   | "any_outcome"
+  | "hedge_fund"
   | "portfolio"
   | "prediction"
   | "options"
@@ -27,6 +28,9 @@ export type AgentRole =
   | "access_scout"
   | "extractor"
   | "equity_quant"
+  | "cfa_forensic"
+  | "risk_officer"
+  | "intel_analyst"
   | "superforecaster"
   | "derivatives_quant"
   | "real_assets_quant"
@@ -61,12 +65,15 @@ export interface Holding {
     | "Event Contract"
     | "Venture / Private";
   assetClass?: AssetClass;
+  side?: "LONG" | "SHORT"; // negative weightPct or side="SHORT" denotes short position
   weightPct: number;
   currentPrice: number;
   beta: number;
   expectedAnnualReturnPct: number;
   annualVolatilityPct: number;
   dividendYieldPct?: number;
+  advUsd?: number; // 20-day Average Daily Volume in USD (for $100M liquidity/impact)
+  borrowCostPct?: number; // Annualized short borrow fee %
 }
 
 // ── Equity DCF ──
@@ -349,6 +356,184 @@ export interface UniversalQuantBundle {
   realAssetValuation?: RealEstateValuationResult;
   bondValuation?: BondValuationResult;
   ventureValuation?: VentureValuationResult;
+  cfaForensics?: CfaForensicResult;
+  hedgeFundRisk?: HedgeFundRiskReport;
+  liquidityCompliance?: LiquidityComplianceReport;
+}
+
+// ── CFA Charterholder Forensic Accounting & Quality of Earnings ──
+export interface CfaForensicInputs {
+  ticker: string;
+  revenuePrior: number; // $M
+  revenueCurrent: number; // $M
+  receivablesPrior: number; // $M
+  receivablesCurrent: number; // $M
+  grossMarginPriorPct: number;
+  grossMarginCurrentPct: number;
+  ebit: number; // $M
+  netIncome: number; // $M
+  operatingCashFlow: number; // $M
+  totalAssets: number; // $M
+  currentAssets: number; // $M
+  currentLiabilities: number; // $M
+  totalLiabilities: number; // $M
+  retainedEarnings: number; // $M
+  marketCap: number; // $M
+  ppePrior: number; // $M
+  ppeCurrent: number; // $M
+  depreciationPrior: number; // $M
+  depreciationCurrent: number; // $M
+  sgaPrior: number; // $M
+  sgaCurrent: number; // $M
+  totalDebtPrior: number; // $M
+  totalDebtCurrent: number; // $M
+  shareholdersEquity: number; // $M
+  taxRatePct: number;
+  costOfDebtPct: number;
+  unleveredBeta: number;
+  riskFreeRatePct: number;
+  equityRiskPremiumPct: number;
+}
+
+export interface CfaForensicResult {
+  ticker: string;
+  beneishMScore: number;
+  beneishFlag: "CLEAN" | "ELEVATED_MANIPULATION_RISK";
+  beneishComponents: {
+    dsri: number;
+    gmi: number;
+    aqi: number;
+    sgi: number;
+    depi: number;
+    sgai: number;
+    lvgi: number;
+    tata: number;
+  };
+  altmanZScore: number;
+  altmanZone: "SAFE" | "GREY" | "DISTRESS";
+  sloanAccrualsRatioPct: number;
+  cashConversionRatio: number;
+  dupontRoe: {
+    netMarginPct: number;
+    assetTurnover: number;
+    financialLeverage: number;
+    roePct: number;
+  };
+  bottomUpWacc: {
+    releveredBeta: number;
+    costOfEquityPct: number;
+    afterTaxCostOfDebtPct: number;
+    waccPct: number;
+  };
+  residualIncomeValuePerShareDeltaPct: number;
+  redFlags: string[];
+}
+
+// ── $100M Hedge Fund Long/Short Risk, Factor Attribution & Tail Risk ──
+export interface FactorTilt {
+  factor: "Market" | "Value" | "Momentum" | "Quality" | "Size" | "Commodity/Inflation";
+  exposure: number;
+  contributionToVolPct: number;
+}
+
+export interface PositionRiskContribution {
+  ticker: string;
+  side: "LONG" | "SHORT";
+  signedWeightPct: number;
+  dollarExposure: number;
+  standaloneVolPct: number;
+  mctrPct: number; // Marginal Contribution to Risk
+  percentOfRisk: number;
+  borrowDragUsd: number;
+}
+
+export interface HedgeFundRiskReport {
+  aumUsd: number;
+  longExposurePct: number;
+  shortExposurePct: number;
+  grossExposurePct: number;
+  netExposurePct: number;
+  betaAdjustedNetPct: number;
+  portfolioVolPct: number;
+  expectedNetReturnPct: number;
+  shortBorrowDragBps: number;
+  sharpeRatio: number;
+  sortinoRatio: number;
+  calmarRatio: number;
+  var95MonthlyPct: number;
+  var95MonthlyUsd: number;
+  cvar99MonthlyPct: number;
+  cvar99MonthlyUsd: number;
+  idiosyncraticRiskPct: number;
+  factorTilts: FactorTilt[];
+  positionRisks: PositionRiskContribution[];
+  blackLittermanWeights: {
+    ticker: string;
+    currentSignedWeightPct: number;
+    optimalSignedWeightPct: number;
+    deltaPct: number;
+  }[];
+}
+
+// ── Institutional Liquidity, Market Impact & Pre-Trade Compliance ──
+export interface PositionLiquidityMetric {
+  ticker: string;
+  side: "LONG" | "SHORT";
+  dollarExposure: number;
+  advUsd: number;
+  pctOfAdv: number;
+  daysToLiquidate: number; // at 15% max ADV participation
+  estimatedImpactBps: number; // Almgren-Chriss temporary + permanent impact
+  estimatedSlippageUsd: number;
+  liquidityBucket: "T+1 Liquid" | "2-5 Days" | "Illiquid (>5d)";
+}
+
+export interface ComplianceRuleResult {
+  ruleId: string;
+  ruleName: string;
+  limit: string;
+  actual: string;
+  status: "PASS" | "WARN" | "BREACH";
+  detail: string;
+}
+
+export interface LiquidityComplianceReport {
+  aumUsd: number;
+  maxAdvParticipationPct: number;
+  weightedDaysToLiquidate: number;
+  illiquidPctOfNav: number;
+  totalEstimatedRebalanceSlippageUsd: number;
+  totalEstimatedSlippageBps: number;
+  overallStatus: "PASS" | "WARN" | "BREACH";
+  positionLiquidity: PositionLiquidityMetric[];
+  complianceChecks: ComplianceRuleResult[];
+}
+
+// ── Unstructured Intelligence Ingestion (Newsletters, News, Podcasts, Filings, Macro) ──
+export type IntelSourceType =
+  | "newsletter"
+  | "news"
+  | "podcast"
+  | "filing"
+  | "macro";
+
+export interface IntelSignal {
+  id: string;
+  sourceType: IntelSourceType;
+  sourceName: string;
+  title: string;
+  publishedAt: string;
+  url?: string;
+  audioUrl?: string;
+  durationLabel?: string;
+  tickers: string[];
+  sentimentScore: number; // -100 (bearish) to +100 (bullish)
+  noveltyScore: number; // 0 to 100
+  credibilityTier: 1 | 2 | 3; // 1 = primary filing / institutional, 2 = specialist, 3 = commentary
+  keyClaims: string[];
+  catalysts: string[];
+  summary: string;
+  live: boolean;
 }
 
 // ── Dynamic Workforce, Routing & Expression Access Vehicles ──
@@ -464,6 +649,8 @@ export interface AnalysisRequestPayload {
   realEstateInputs?: RealEstateInputs;
   bondInputs?: BondInputs;
   ventureInputs?: VentureDealInputs;
+  cfaForensicInputs?: CfaForensicInputs;
+  intelSignals?: IntelSignal[];
   attachmentBase64?: string;
   attachmentMimeType?: string;
   attachmentName?: string;
@@ -479,6 +666,7 @@ export interface CompleteAnalysisResult {
   request: AnalysisRequestPayload;
   routingPlan?: RoutingPlan;
   expressionVehicles?: ExpressionVehicle[];
+  intelSignals?: IntelSignal[];
   portfolioMetrics: PortfolioMetrics;
   dcfResult: DcfResult;
   monteCarlo: MonteCarloResult;
@@ -505,6 +693,7 @@ export type StreamEvent =
     }
   | { type: "universal_quant_ready"; quant: UniversalQuantBundle }
   | { type: "access_vehicles"; vehicles: ExpressionVehicle[] }
+  | { type: "intel_ready"; signals: IntelSignal[] }
   | { type: "agent_turn"; turn: AgentDebateTurn }
   | { type: "cio_memo"; memo: CioInvestmentMemo }
   | { type: "complete"; result: CompleteAnalysisResult }
