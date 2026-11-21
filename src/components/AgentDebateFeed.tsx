@@ -18,6 +18,9 @@ import {
   Building2,
   LineChart,
   GitBranch,
+  Scale,
+  ShieldCheck,
+  Radio,
 } from "lucide-react";
 import { AgentDebateTurn, AgentRole, RoutingPlan } from "@/lib/types";
 
@@ -60,6 +63,24 @@ const ROLE_STYLES: Record<
     border: "border-emerald-500/30",
     badge: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
     accentText: "text-emerald-300",
+  },
+  cfa_forensic: {
+    icon: Scale,
+    border: "border-amber-500/35",
+    badge: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+    accentText: "text-amber-300",
+  },
+  risk_officer: {
+    icon: ShieldCheck,
+    border: "border-orange-500/35",
+    badge: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+    accentText: "text-orange-300",
+  },
+  intel_analyst: {
+    icon: Radio,
+    border: "border-indigo-500/35",
+    badge: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+    accentText: "text-indigo-300",
   },
   superforecaster: {
     icon: BrainCircuit,

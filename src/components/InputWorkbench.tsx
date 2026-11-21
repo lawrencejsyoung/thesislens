@@ -50,6 +50,7 @@ const SECTORS: Holding["sector"][] = [
 ];
 
 const MODES: { id: AnalysisMode; label: string }[] = [
+  { id: "hedge_fund", label: "$100M Fund" },
   { id: "any_outcome", label: "Any Outcome" },
   { id: "portfolio", label: "Portfolio" },
   { id: "prediction", label: "Prediction" },

@@ -7,6 +7,7 @@ import { AgentDebateFeed } from "@/components/AgentDebateFeed";
 import { CioMemoDashboard } from "@/components/CioMemoDashboard";
 import { QuantAnalyticsPanel } from "@/components/QuantAnalyticsPanel";
 import { AccessExpressionMatrix } from "@/components/AccessExpressionMatrix";
+import { IntelligenceHub } from "@/components/IntelligenceHub";
 import { SavedMemosDrawer } from "@/components/SavedMemosDrawer";
 import { PRESET_SCENARIOS } from "@/lib/demo-scenarios";
 import { listSavedMemos, saveMemo } from "@/lib/firebase";
@@ -17,6 +18,7 @@ import {
   CompleteAnalysisResult,
   DcfResult,
   ExpressionVehicle,
+  IntelSignal,
   MacroShockScenarioResult,
   MonteCarloResult,
   PortfolioMetrics,
@@ -47,6 +49,8 @@ export default function HomePage() {
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlan | null>(null);
   const [expressionVehicles, setExpressionVehicles] = useState<ExpressionVehicle[]>([]);
+  const [intelSignals, setIntelSignals] = useState<IntelSignal[]>([]);
+  const [customIntelSignals, setCustomIntelSignals] = useState<IntelSignal[]>([]);
   const [universalQuant, setUniversalQuant] = useState<UniversalQuantBundle | null>(null);
   const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
   const [dcfResult, setDcfResult] = useState<DcfResult | null>(null);
@@ -86,7 +90,11 @@ export default function HomePage() {
   };
 
   const runAnalysis = async (customPayload?: AnalysisRequestPayload) => {
-    const reqPayload = customPayload ?? payload;
+    const basePayload = customPayload ?? payload;
+    const reqPayload: AnalysisRequestPayload =
+      customIntelSignals.length > 0
+        ? { ...basePayload, intelSignals: customIntelSignals }
+        : basePayload;
     setIsRunning(true);
     setErrorMessage(null);
     setRoutingPlan(null);
@@ -149,6 +157,8 @@ export default function HomePage() {
             setUniversalQuant(event.quant);
           } else if (event.type === "access_vehicles") {
             setExpressionVehicles(event.vehicles);
+          } else if (event.type === "intel_ready") {
+            setIntelSignals(event.signals);
           } else if (event.type === "agent_turn") {
             setDebateTurns((prev) => [...prev, event.turn]);
           } else if (event.type === "cio_memo") {
@@ -191,6 +201,7 @@ export default function HomePage() {
     setModelUsed(memo.modelUsed);
     setRoutingPlan(memo.routingPlan ?? null);
     setExpressionVehicles(memo.expressionVehicles ?? []);
+    setIntelSignals(memo.intelSignals ?? []);
     setUniversalQuant(memo.universalQuant ?? null);
     setPortfolioMetrics(memo.portfolioMetrics);
     setDcfResult(memo.dcfResult);
@@ -272,6 +283,18 @@ export default function HomePage() {
                 macroShocks={macroShocks}
                 universalQuant={universalQuant}
                 requestPayload={payload}
+              />
+            )}
+
+            {/* Multi-Source Intelligence Hub (Newsletters, Podcasts, News, SEC Filings & Macro) */}
+            {intelSignals.length > 0 && (
+              <IntelligenceHub
+                signals={intelSignals}
+                userApiKey={userApiKey}
+                onAddSignals={(newSigs) => {
+                  setCustomIntelSignals((prev) => [...newSigs, ...prev]);
+                  setIntelSignals((prev) => [...newSigs, ...prev]);
+                }}
               />
             )}
 
