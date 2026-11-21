@@ -7,6 +7,7 @@ import {
   History,
   CheckCircle2,
   Cpu,
+  Landmark,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -18,6 +19,8 @@ interface HeaderProps {
   activeMode: "live-gemini" | "demo-simulation";
   savedCount: number;
   onOpenSaved: () => void;
+  activeWorkspace?: "committee" | "global_tax";
+  onChangeWorkspace?: (workspace: "committee" | "global_tax") => void;
 }
 
 export function Header({
@@ -27,6 +30,8 @@ export function Header({
   activeMode,
   savedCount,
   onOpenSaved,
+  activeWorkspace = "committee",
+  onChangeWorkspace,
 }: HeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftKey, setDraftKey] = useState(userApiKey);
@@ -65,6 +70,29 @@ export function Header({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2.5">
+            {onChangeWorkspace && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeWorkspace(
+                    activeWorkspace === "global_tax" ? "committee" : "global_tax"
+                  )
+                }
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  activeWorkspace === "global_tax"
+                    ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm shadow-emerald-500/20"
+                    : "border-cyan-500/35 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
+                }`}
+              >
+                <Landmark className="h-3.5 w-3.5" />
+                <span>
+                  {activeWorkspace === "global_tax"
+                    ? "Back to Committee"
+                    : "Global Tax Consultant"}
+                </span>
+              </button>
+            )}
+
             {/* Mode Pill */}
             <div
               className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium sm:flex ${

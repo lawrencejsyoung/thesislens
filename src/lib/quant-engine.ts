@@ -34,6 +34,19 @@ export {
   runLiquidityAndComplianceCheck,
   getSignedWeightPct,
 } from "./quant/cfa-institutional";
+export {
+  TAX_RESIDENCY_PROFILES,
+  FOREIGN_SOURCE_COUNTRIES,
+  FOREIGN_REAL_ESTATE_MARKETS,
+  buildDefaultGlobalTaxProfile,
+  computeMarginalOrdinaryRate,
+  analyzeAccountLocations,
+  compareIncomeStreams,
+  analyzeBusinessOwnershipTax,
+  analyzeForeignRealEstateTax,
+  runGlobalTaxAudit,
+  generateDeterministicTaxAdvice,
+} from "./quant/global-tax-engine";
 
 const RISK_FREE_RATE = 0.042; // 4.2% 10Y Treasury baseline
 
