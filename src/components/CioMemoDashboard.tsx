@@ -14,8 +14,10 @@ import {
   Scale,
   Compass,
   ListChecks,
+  ArrowRightLeft,
+  Swords,
 } from "lucide-react";
-import { ActionRating, CioInvestmentMemo } from "@/lib/types";
+import { ActionRating, CioInvestmentMemo, ExperienceTier } from "@/lib/types";
 
 interface CioMemoDashboardProps {
   memo: CioInvestmentMemo;
@@ -23,6 +25,10 @@ interface CioMemoDashboardProps {
   modelUsed: string;
   onSaveMemo: () => void;
   savedStatus: "idle" | "saving" | "saved-firestore" | "saved-local";
+  onToggleRebalanceSim?: () => void;
+  rebalanceSimOpen?: boolean;
+  onOpenWarRoom?: () => void;
+  experienceTier?: ExperienceTier;
 }
 
 const RATING_COLORS: Record<ActionRating, string> = {
@@ -51,6 +57,10 @@ export function CioMemoDashboard({
   modelUsed,
   onSaveMemo,
   savedStatus,
+  onToggleRebalanceSim,
+  rebalanceSimOpen = false,
+  onOpenWarRoom,
+  experienceTier = "prosumer",
 }: CioMemoDashboardProps) {
   const scoreColor =
     memo.convictionScore >= 75
@@ -233,9 +243,46 @@ export function CioMemoDashboard({
 
       {/* Rebalance Plan Table */}
       <div className="mt-4">
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-white">
-          <Shield className="h-4 w-4 text-emerald-400" />
-          <span>Actionable Position-Sizing &amp; Rebalance Plan</span>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+            <Shield className="h-4 w-4 text-emerald-400" />
+            <span>Actionable Position-Sizing &amp; Rebalance Plan</span>
+            {experienceTier === "prosumer" && (
+              <span className="hidden rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-normal text-slate-400 sm:inline">
+                Test before trading
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {onToggleRebalanceSim && (
+              <button
+                type="button"
+                onClick={onToggleRebalanceSim}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
+                  rebalanceSimOpen
+                    ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-100"
+                    : "border-cyan-500/45 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
+                }`}
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                <span>
+                  {rebalanceSimOpen
+                    ? "Hide Rebalance Sandbox"
+                    : "Simulate CIO Rebalance (Before vs. After)"}
+                </span>
+              </button>
+            )}
+            {onOpenWarRoom && (
+              <button
+                type="button"
+                onClick={onOpenWarRoom}
+                className="flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/15 px-2.5 py-1.5 text-xs font-bold text-violet-200 transition hover:bg-violet-500/25"
+              >
+                <Swords className="h-3.5 w-3.5" />
+                <span>Challenge Committee</span>
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto rounded-xl border border-slate-800">
           <table className="w-full text-left text-xs">

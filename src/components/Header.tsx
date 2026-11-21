@@ -10,7 +10,10 @@ import {
   Landmark,
   ShieldCheck,
   X,
+  Briefcase,
+  User,
 } from "lucide-react";
+import { ExperienceTier } from "@/lib/types";
 
 interface HeaderProps {
   hasServerKey: boolean;
@@ -21,6 +24,8 @@ interface HeaderProps {
   onOpenSaved: () => void;
   activeWorkspace?: "committee" | "global_tax";
   onChangeWorkspace?: (workspace: "committee" | "global_tax") => void;
+  experienceTier?: ExperienceTier;
+  onChangeExperienceTier?: (tier: ExperienceTier) => void;
 }
 
 export function Header({
@@ -32,6 +37,8 @@ export function Header({
   onOpenSaved,
   activeWorkspace = "committee",
   onChangeWorkspace,
+  experienceTier = "prosumer",
+  onChangeExperienceTier,
 }: HeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftKey, setDraftKey] = useState(userApiKey);
@@ -70,6 +77,39 @@ export function Header({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2.5">
+            {onChangeExperienceTier && activeWorkspace === "committee" && (
+              <div
+                className="hidden items-center rounded-lg border border-slate-700/90 bg-slate-900/90 p-0.5 sm:flex"
+                role="group"
+                aria-label="Adaptive Experience Mode"
+              >
+                <button
+                  type="button"
+                  onClick={() => onChangeExperienceTier("prosumer")}
+                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                    experienceTier === "prosumer"
+                      ? "bg-emerald-500/20 text-emerald-200 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <User className="h-3 w-3" />
+                  <span>Prosumer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeExperienceTier("institutional")}
+                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                    experienceTier === "institutional"
+                      ? "bg-amber-500/20 text-amber-200 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Briefcase className="h-3 w-3" />
+                  <span>Institutional</span>
+                </button>
+              </div>
+            )}
+
             {onChangeWorkspace && (
               <button
                 type="button"
