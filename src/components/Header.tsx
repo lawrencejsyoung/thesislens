@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sparkles,
   KeyRound,
@@ -11,6 +13,7 @@ import {
   ShieldCheck,
   X,
   Briefcase,
+  Compass,
   User,
 } from "lucide-react";
 import { ExperienceTier } from "@/lib/types";
@@ -20,8 +23,8 @@ interface HeaderProps {
   userApiKey: string;
   onSaveApiKey: (key: string) => void;
   activeMode: "live-gemini" | "demo-simulation";
-  savedCount: number;
-  onOpenSaved: () => void;
+  savedCount?: number;
+  onOpenSaved?: () => void;
   activeWorkspace?: "committee" | "global_tax";
   onChangeWorkspace?: (workspace: "committee" | "global_tax") => void;
   experienceTier?: ExperienceTier;
@@ -33,13 +36,14 @@ export function Header({
   userApiKey,
   onSaveApiKey,
   activeMode,
-  savedCount,
+  savedCount = 0,
   onOpenSaved,
   activeWorkspace = "committee",
   onChangeWorkspace,
   experienceTier = "prosumer",
   onChangeExperienceTier,
 }: HeaderProps) {
+  const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftKey, setDraftKey] = useState(userApiKey);
 
@@ -74,6 +78,32 @@ export function Header({
               </p>
             </div>
           </div>
+
+          {/* Module Navigation Switcher */}
+          <nav className="hidden items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/80 p-1 md:flex">
+            <Link
+              href="/"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                pathname === "/"
+                  ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40"
+                  : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-200"
+              }`}
+            >
+              <Briefcase className="h-3.5 w-3.5" />
+              <span>Investment Committee</span>
+            </Link>
+            <Link
+              href="/lifestyle"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                pathname?.startsWith("/lifestyle")
+                  ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40"
+                  : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-200"
+              }`}
+            >
+              <Compass className="h-3.5 w-3.5" />
+              <span>Lifestyle Planner</span>
+            </Link>
+          </nav>
 
           {/* Right Controls */}
           <div className="flex items-center gap-2.5">
@@ -135,7 +165,7 @@ export function Header({
 
             {/* Mode Pill */}
             <div
-              className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium sm:flex ${
+              className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium xl:flex ${
                 isLiveReady && activeMode === "live-gemini"
                   ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                   : isLiveReady
@@ -147,19 +177,21 @@ export function Header({
               {isLiveReady ? "Gemini 2.5 Flash Ready" : "Interactive Demo Mode"}
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenSaved}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
-            >
-              <History className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Memos</span>
-              {savedCount > 0 && (
-                <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-300">
-                  {savedCount}
-                </span>
-              )}
-            </button>
+            {onOpenSaved && (
+              <button
+                type="button"
+                onClick={onOpenSaved}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
+              >
+                <History className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Memos</span>
+                {savedCount > 0 && (
+                  <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-300">
+                    {savedCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             <button
               type="button"
@@ -173,6 +205,32 @@ export function Header({
               <span>{isLiveReady ? "API Connected" : "Connect Gemini Key"}</span>
             </button>
           </div>
+        </div>
+
+        {/* Mobile Module Switcher */}
+        <div className="flex items-center gap-1.5 border-t border-slate-800/70 px-4 py-2 md:hidden">
+          <Link
+            href="/"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold ${
+              pathname === "/"
+                ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40"
+                : "text-slate-400"
+            }`}
+          >
+            <Briefcase className="h-3.5 w-3.5" />
+            <span>Investment Committee</span>
+          </Link>
+          <Link
+            href="/lifestyle"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold ${
+              pathname?.startsWith("/lifestyle")
+                ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40"
+                : "text-slate-400"
+            }`}
+          >
+            <Compass className="h-3.5 w-3.5" />
+            <span>Lifestyle Planner</span>
+          </Link>
         </div>
       </header>
 
