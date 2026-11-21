@@ -882,3 +882,237 @@ export type StreamEvent =
   | { type: "cio_memo"; memo: CioInvestmentMemo }
   | { type: "complete"; result: CompleteAnalysisResult }
   | { type: "error"; message: string };
+
+// ── Global Tax Consultant & Cross-Border Structuring Module ──
+export type TaxResidencyId =
+  | "canada_on"
+  | "us_ca"
+  | "us_tx"
+  | "uk"
+  | "singapore"
+  | "uae"
+  | "portugal";
+
+export type ForeignSourceCountryId =
+  | "us"
+  | "canada"
+  | "uk"
+  | "ireland_ucits"
+  | "eu_germany"
+  | "japan"
+  | "switzerland";
+
+export type TaxAssetBucket =
+  | "domestic_equity_growth"
+  | "domestic_dividend"
+  | "foreign_us_dividend"
+  | "foreign_growth_etf"
+  | "fixed_income_reit"
+  | "active_options_crypto";
+
+export type InvestmentGainStreamId =
+  | "ltcg"
+  | "stcg"
+  | "domestic_qualified_div"
+  | "foreign_div"
+  | "interest_credit"
+  | "return_of_capital"
+  | "sbloc_borrow"
+  | "corp_cda_extraction";
+
+export type BusinessStructureId =
+  | "sole_prop"
+  | "domestic_smb_corp"
+  | "holdco_passive"
+  | "us_c_corp_qsbs"
+  | "foreign_operating_corp";
+
+export type ForeignRealEstateMarketId =
+  | "us_florida"
+  | "portugal_lisbon"
+  | "mexico_riviera"
+  | "uk_london"
+  | "uae_dubai"
+  | "japan_tokyo"
+  | "canada_ontario";
+
+export type ForeignPropertyEntityType =
+  | "personal_direct"
+  | "home_corp"
+  | "local_llc"
+  | "trust_fideicomiso";
+
+export interface TaxResidencyProfile {
+  id: TaxResidencyId;
+  label: string;
+  country: string;
+  currency: string;
+  topOrdinaryRatePct: number;
+  ltcgRatePct: number;
+  stcgRatePct: number;
+  domesticDividendRatePct: number;
+  foreignDividendRatePct: number;
+  interestRatePct: number;
+  estateTaxThresholdUsd: number | null;
+  estateTaxTopRatePct: number;
+  territorialSystem: boolean;
+  keyAccounts: string[];
+  summaryNote: string;
+}
+
+export interface GlobalTaxProfile {
+  residency: TaxResidencyId;
+  annualOrdinaryIncomeUsd: number;
+  portfolioValueUsd: number;
+  foreignAllocationPct: number;
+  foreignSourceCountry: ForeignSourceCountryId;
+  targetGainToAccessUsd: number;
+  horizonYears: number;
+  expectedPreTaxReturnPct: number;
+  expectedDividendYieldPct: number;
+  // Business ownership inputs
+  businessAnnualProfitUsd: number;
+  businessSalaryDrawUsd: number;
+  businessPassiveIncomeUsd: number;
+  businessExitValueUsd: number;
+  // Foreign real estate inputs
+  foreignPropertyMarket: ForeignRealEstateMarketId;
+  foreignPropertyPriceUsd: number;
+  foreignPropertyGrossYieldPct: number;
+  foreignPropertyHoldYears: number;
+  foreignPropertyAppreciationPct: number;
+  foreignPropertyEntity: ForeignPropertyEntityType;
+}
+
+export interface AccountLocationRow {
+  accountId: string;
+  accountName: string;
+  category: "tax_free" | "tax_deferred" | "taxable" | "corporate" | "offshore_ucits";
+  contributionCapNote: string;
+  domesticAfterTaxCagrPct: number;
+  foreignAfterTaxCagrPct: number;
+  foreignWithholdingDragBps: number;
+  ftcRecoverable: boolean;
+  projected10YrWealthUsd: number;
+  taxSavedVsTaxableUsd: number;
+  bestForAssets: string[];
+  avoidAssets: string[];
+  treatyNote: string;
+}
+
+export interface AssetLocationRecommendation {
+  assetBucket: TaxAssetBucket;
+  assetLabel: string;
+  optimalAccount: string;
+  worstAccount: string;
+  annualTaxDragSavedBps: number;
+  rationale: string;
+}
+
+export interface IncomeStreamComparisonRow {
+  streamId: InvestmentGainStreamId;
+  label: string;
+  category: string;
+  grossAmountUsd: number;
+  domesticTaxUsd: number;
+  foreignWithholdingUsd: number;
+  borrowingOrFrictionUsd: number;
+  netSpendableUsd: number;
+  effectiveTaxRatePct: number;
+  afterTaxRetentionPct: number;
+  tenYrCompoundedNetUsd: number;
+  accessMechanism: string;
+  keyCaveat: string;
+}
+
+export interface BusinessStructureRow {
+  structureId: BusinessStructureId;
+  label: string;
+  corporateTaxRatePct: number;
+  annualCorporateTaxUsd: number;
+  annualPersonalTaxUsd: number;
+  totalAnnualTaxUsd: number;
+  effectiveCombinedRatePct: number;
+  retainedForReinvestmentUsd: number;
+  annualDeferralAdvantageUsd: number;
+  exitTaxOnSaleUsd: number;
+  exitEffectiveRatePct: number;
+  passiveGrindWarning?: string;
+  cfcOrFapiWarning?: string;
+  verdict: "OPTIMAL" | "VIABLE" | "CAUTION";
+  keyTakeaway: string;
+}
+
+export interface ForeignRealEstateTaxResult {
+  marketId: ForeignRealEstateMarketId;
+  marketLabel: string;
+  country: string;
+  entityType: ForeignPropertyEntityType;
+  entityLabel: string;
+  purchasePriceUsd: number;
+  // Acquisition
+  acquisitionStampAndTransferUsd: number;
+  foreignBuyerSurchargeUsd: number;
+  setupAndLegalUsd: number;
+  totalAcquisitionFrictionUsd: number;
+  // Ongoing Annual Rental
+  grossAnnualRentUsd: number;
+  operatingAndPropertyTaxUsd: number;
+  depreciationShieldUsd: number;
+  foreignRentalTaxGrossMethodUsd: number;
+  foreignRentalTaxNetElectionUsd: number;
+  homeCountryNetTaxAfterFtcUsd: number;
+  netAnnualAfterTaxCashflowUsd: number;
+  // Exit
+  projectedExitPriceUsd: number;
+  grossCapitalGainUsd: number;
+  foreignExitCapitalGainsTaxUsd: number;
+  mandatoryClosingWithholdingUsd: number;
+  closingWithholdingRule: string;
+  homeExitTopUpTaxUsd: number;
+  netAfterTaxExitProceedsUsd: number;
+  // Summary
+  preTaxIrrPct: number;
+  afterTaxIrrPct: number;
+  totalLifecycleTaxDragPct: number;
+  estateTaxExposureNote: string;
+  entityStructureAlerts: string[];
+  recommendedStructure: string;
+}
+
+export interface TaxComplianceAlert {
+  id: string;
+  severity: "HIGH" | "MEDIUM" | "INFO";
+  code: string;
+  title: string;
+  summary: string;
+  action: string;
+}
+
+export interface GlobalTaxReport {
+  residency: TaxResidencyProfile;
+  effectiveMarginalRatePct: number;
+  taxEfficiencyScore: number; // 0..100
+  estimatedAnnualTaxAlphaUsd: number;
+  bestAccountWrapper: string;
+  bestGainStream: string;
+  bestBusinessStructure: string;
+  accountLocations: AccountLocationRow[];
+  assetLocationMatrix: AssetLocationRecommendation[];
+  incomeStreams: IncomeStreamComparisonRow[];
+  businessStructures: BusinessStructureRow[];
+  foreignRealEstate: ForeignRealEstateTaxResult;
+  complianceAlerts: TaxComplianceAlert[];
+  executivePlaybook: string[];
+}
+
+export interface TaxConsultantMessage {
+  id: string;
+  role: "user" | "consultant";
+  content: string;
+  timestamp: string;
+  mode?: "live-gemini" | "deterministic-engine";
+  keyMetricsCited?: string[];
+  actionSteps?: string[];
+  riskFlags?: string[];
+}

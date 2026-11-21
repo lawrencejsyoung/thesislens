@@ -27,6 +27,11 @@ import {
   runLiquidityAndComplianceCheck,
 } from "./cfa-institutional";
 import { CURATED_INTEL_SIGNALS } from "../adapters/intel-ingestion";
+import {
+  buildDefaultGlobalTaxProfile,
+  runGlobalTaxAudit,
+} from "./global-tax-engine";
+import { ForeignRealEstateMarketId, TaxResidencyId } from "../types";
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -269,6 +274,26 @@ export const UNIVERSAL_QUANT_TOOLS: FunctionDeclaration[] = [
         tickerFilter: {
           type: Type.STRING,
           description: "Optional ticker symbol to filter intelligence signals (e.g. VALE, ETN, CCJ).",
+        },
+      },
+    },
+  },
+  {
+    name: "analyze_global_tax_strategy",
+    description:
+      "Runs a cross-border global tax audit covering domestic vs. foreign investing across tax-efficient accounts (TFSA, RRSP, Roth, 401k, ISA, SIPP, UCITS), business ownership structures (CCPC, S-Corp, HoldCo, QSBS), foreign real estate (FIRPTA, NRST, net rental election), and accessing investment gain streams (LTCG, ROC, SBLOC, dividends).",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        residency: {
+          type: Type.STRING,
+          description:
+            "Optional tax residency id: 'canada_on', 'us_ca', 'us_tx', 'uk', 'singapore', 'uae', 'portugal'.",
+        },
+        foreignPropertyMarket: {
+          type: Type.STRING,
+          description:
+            "Optional foreign real estate market: 'us_florida', 'portugal_lisbon', 'mexico_riviera', 'uk_london', 'uae_dubai', 'japan_tokyo', 'canada_ontario'.",
         },
       },
     },
@@ -617,6 +642,42 @@ export function executeUniversalQuantTool(
         .slice(0, 2)
         .map((s) => `[${s.sourceType.toUpperCase()}] ${s.sourceName}`)
         .join(" | ")}`,
+    };
+  }
+
+  if (name === "analyze_global_tax_strategy") {
+    const baseProfile = buildDefaultGlobalTaxProfile(
+      request.jurisdiction ?? "Canada",
+      request.capital
+    );
+    const residency =
+      typeof args.residency === "string"
+        ? (args.residency as TaxResidencyId)
+        : baseProfile.residency;
+    const foreignPropertyMarket =
+      typeof args.foreignPropertyMarket === "string"
+        ? (args.foreignPropertyMarket as ForeignRealEstateMarketId)
+        : baseProfile.foreignPropertyMarket;
+
+    const audit = runGlobalTaxAudit({
+      ...baseProfile,
+      residency,
+      foreignPropertyMarket,
+    });
+    return {
+      payload: {
+        residency: audit.residency.label,
+        effectiveMarginalRatePct: audit.effectiveMarginalRatePct,
+        taxEfficiencyScore: audit.taxEfficiencyScore,
+        estimatedAnnualTaxAlphaUsd: audit.estimatedAnnualTaxAlphaUsd,
+        bestAccountWrapper: audit.bestAccountWrapper,
+        bestGainStream: audit.bestGainStream,
+        bestBusinessStructure: audit.bestBusinessStructure,
+        foreignRealEstateAfterTaxIrrPct: audit.foreignRealEstate.afterTaxIrrPct,
+        complianceAlertsCount: audit.complianceAlerts.length,
+        executivePlaybook: audit.executivePlaybook,
+      },
+      summary: `Global Tax Audit (${audit.residency.label}): Score ${audit.taxEfficiencyScore}/100 | Est. Tax Alpha ${formatCurrency(audit.estimatedAnnualTaxAlphaUsd)}/yr | Top Account: ${audit.bestAccountWrapper} | Top Stream: ${audit.bestGainStream}`,
     };
   }
 

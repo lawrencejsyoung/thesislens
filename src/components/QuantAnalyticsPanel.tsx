@@ -22,6 +22,7 @@ import {
   Building2,
   Calculator,
   Flame,
+  Landmark,
   PieChart,
   Rocket,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { CfaHedgeFundLab } from "@/components/CfaHedgeFundLab";
 import { RealEstateAnalysisLab } from "@/components/RealEstateAnalysisLab";
+import { GlobalTaxModule } from "@/components/GlobalTaxModule";
 import {
   AnalysisRequestPayload,
   DcfInputs,
@@ -54,6 +56,7 @@ interface QuantAnalyticsPanelProps {
   macroShocks: MacroShockScenarioResult[];
   universalQuant?: UniversalQuantBundle | null;
   requestPayload?: AnalysisRequestPayload;
+  userApiKey?: string;
 }
 
 type QuantTab =
@@ -61,6 +64,7 @@ type QuantTab =
   | "prediction"
   | "options"
   | "real_assets"
+  | "global_tax"
   | "venture"
   | "montecarlo"
   | "macro"
@@ -79,6 +83,7 @@ export function QuantAnalyticsPanel({
   macroShocks,
   universalQuant,
   requestPayload,
+  userApiKey,
 }: QuantAnalyticsPanelProps) {
   const hasHedgeFund = Boolean(universalQuant?.cfaForensics && universalQuant?.hedgeFundRisk);
   const hasPrediction = Boolean(universalQuant?.predictionValuation);
@@ -339,6 +344,12 @@ export function QuantAnalyticsPanel({
               icon={Building2}
               label="Real Estate Lab"
             />
+            <TabButton
+              active={activeTab === "global_tax"}
+              onClick={() => setActiveTab("global_tax")}
+              icon={Landmark}
+              label="Global Tax Consultant"
+            />
             {hasVenture && (
               <TabButton
                 active={activeTab === "venture"}
@@ -379,6 +390,15 @@ export function QuantAnalyticsPanel({
             holdings={requestPayload.holdings}
             initialAumUsd={requestPayload.capital}
             forensics={universalQuant.cfaForensics}
+          />
+        )}
+
+        {/* TAB: GLOBAL TAX CONSULTANT MODULE */}
+        {activeTab === "global_tax" && (
+          <GlobalTaxModule
+            initialJurisdiction={requestPayload?.jurisdiction ?? "Canada"}
+            initialCapital={requestPayload?.capital ?? 250000}
+            userApiKey={userApiKey}
           />
         )}
 

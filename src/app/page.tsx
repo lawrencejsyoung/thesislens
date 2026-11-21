@@ -8,6 +8,7 @@ import { CioMemoDashboard } from "@/components/CioMemoDashboard";
 import { QuantAnalyticsPanel } from "@/components/QuantAnalyticsPanel";
 import { AccessExpressionMatrix } from "@/components/AccessExpressionMatrix";
 import { IntelligenceHub } from "@/components/IntelligenceHub";
+import { GlobalTaxModule } from "@/components/GlobalTaxModule";
 import { SavedMemosDrawer } from "@/components/SavedMemosDrawer";
 import { PRESET_SCENARIOS } from "@/lib/demo-scenarios";
 import { listSavedMemos, saveMemo } from "@/lib/firebase";
@@ -61,6 +62,9 @@ export default function HomePage() {
   const [completeResult, setCompleteResult] = useState<CompleteAnalysisResult | null>(null);
 
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<"committee" | "global_tax">(
+    "committee"
+  );
   const [savedMemos, setSavedMemos] = useState<CompleteAnalysisResult[]>([]);
   const [savedSource, setSavedSource] = useState<"firestore" | "local">("local");
   const [saveStatus, setSaveStatus] = useState<
@@ -225,6 +229,8 @@ export default function HomePage() {
         activeMode={activeMode}
         savedCount={savedMemos.length}
         onOpenSaved={() => setSavedDrawerOpen(true)}
+        activeWorkspace={activeWorkspace}
+        onChangeWorkspace={setActiveWorkspace}
       />
 
       <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
@@ -235,6 +241,13 @@ export default function HomePage() {
           </div>
         )}
 
+        {activeWorkspace === "global_tax" ? (
+          <GlobalTaxModule
+            initialJurisdiction={payload.jurisdiction ?? "Canada"}
+            initialCapital={payload.capital}
+            userApiKey={userApiKey}
+          />
+        ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* Left Workbench */}
           <div className="lg:col-span-4 xl:col-span-3">
@@ -283,6 +296,7 @@ export default function HomePage() {
                 macroShocks={macroShocks}
                 universalQuant={universalQuant}
                 requestPayload={payload}
+                userApiKey={userApiKey}
               />
             )}
 
@@ -307,6 +321,7 @@ export default function HomePage() {
             />
           </div>
         </div>
+        )}
       </main>
 
       <SavedMemosDrawer
