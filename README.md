@@ -78,3 +78,52 @@ Deterministic Quant Engine     Google Gemini 2.5 Flash (@google/genai)
    - Switch to **Macro Shock Stress Test** to show how the portfolio behaves in a *+100bps Rate Shock* vs. *Critical Minerals Supercycle*.
 3. **Multimodal & Firebase (40s)**: Upload an earnings chart screenshot so Agent 1 extracts financial signals via Gemini Vision, then click **Save Memo** to persist the structured CIO report.
 4. **Close (30s)**: Built from scratch on Google Gemini 2.5 Flash (`@google/genai`), Next.js, TypeScript, Recharts, and Firebase—ready for retail investors, student investment clubs, and financial advisors.
+
+---
+
+## Connect Any AI Agent (MCP Server)
+
+ThesisLens ships with a **dual-transport Model Context Protocol (MCP) server** so *any* AI agent (Antigravity, Claude Desktop, Claude Code, Cursor, Gemini CLI, OpenAI Agents SDK, or custom web agents) can call its deterministic quant engine, compare competing capital options head-to-head, and run adversarial Bull vs. Bear pre-mortems.
+
+- **16 Tools**: `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
+- **3 Decision-Coaching Prompts**: `decision-brief`, `buy-vs-invest`, `probabilistic-bet-sizing`.
+- **3 Read-Only Resources**: `thesislens://markets/real-estate`, `thesislens://tax/residencies`, `thesislens://scenarios/presets`.
+
+### Option A: Local `stdio` MCP Server (Claude Desktop, Cursor, Antigravity, Gemini CLI)
+
+Add this to your MCP client config (e.g. `claude_desktop_config.json`, `.cursor/mcp.json`, or Antigravity MCP config):
+
+```json
+{
+  "mcpServers": {
+    "thesislens": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/stdio.ts"],
+      "cwd": "/ABSOLUTE/PATH/TO/hackdevsudbury",
+      "env": {
+        "GEMINI_API_KEY": "optional-for-live-gemini-committee"
+      }
+    }
+  }
+}
+```
+
+> All 16 tools (including `run_adversarial_committee`) work **100% deterministically with zero API key**. Providing `GEMINI_API_KEY` automatically upgrades `run_adversarial_committee` to live Gemini multi-agent debate.
+
+### Option B: Remote Streamable HTTP MCP Endpoint (`/api/mcp`)
+
+When the Next.js app is running locally (`npm run dev`) or deployed, any HTTP-capable MCP client can connect to:
+
+```text
+POST http://localhost:3000/api/mcp
+```
+
+- Optional auth: set `MCP_API_KEY` in `.env.local` to require `Authorization: Bearer <MCP_API_KEY>`.
+- Optional per-request Gemini upgrade: pass `x-gemini-api-key: <key>`.
+
+### Verification Scripts
+
+```bash
+npm run verify:quant   # Core quantitative engine invariants
+npm run verify:mcp     # In-memory + real stdio MCP integration tests
+```
