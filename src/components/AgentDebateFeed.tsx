@@ -12,13 +12,20 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
+  Compass,
+  BrainCircuit,
+  Sigma,
+  Building2,
+  LineChart,
+  GitBranch,
 } from "lucide-react";
-import { AgentDebateTurn, AgentRole } from "@/lib/types";
+import { AgentDebateTurn, AgentRole, RoutingPlan } from "@/lib/types";
 
 interface AgentDebateFeedProps {
   turns: AgentDebateTurn[];
   isRunning: boolean;
   statusMessage: string;
+  routingPlan?: RoutingPlan | null;
 }
 
 const ROLE_STYLES: Record<
@@ -30,11 +37,47 @@ const ROLE_STYLES: Record<
     accentText: string;
   }
 > = {
+  router: {
+    icon: GitBranch,
+    border: "border-cyan-500/35",
+    badge: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+    accentText: "text-cyan-300",
+  },
+  access_scout: {
+    icon: Compass,
+    border: "border-teal-500/35",
+    badge: "bg-teal-500/15 text-teal-300 border-teal-500/30",
+    accentText: "text-teal-300",
+  },
   extractor: {
     icon: FileSearch,
     border: "border-cyan-500/30",
     badge: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     accentText: "text-cyan-300",
+  },
+  equity_quant: {
+    icon: LineChart,
+    border: "border-emerald-500/30",
+    badge: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+    accentText: "text-emerald-300",
+  },
+  superforecaster: {
+    icon: BrainCircuit,
+    border: "border-violet-500/35",
+    badge: "bg-violet-500/15 text-violet-300 border-violet-500/30",
+    accentText: "text-violet-300",
+  },
+  derivatives_quant: {
+    icon: Sigma,
+    border: "border-sky-500/35",
+    badge: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+    accentText: "text-sky-300",
+  },
+  real_assets_quant: {
+    icon: Building2,
+    border: "border-fuchsia-500/35",
+    badge: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+    accentText: "text-fuchsia-300",
   },
   bull: {
     icon: TrendingUp,
@@ -60,6 +103,7 @@ export function AgentDebateFeed({
   turns,
   isRunning,
   statusMessage,
+  routingPlan,
 }: AgentDebateFeedProps) {
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
 
@@ -72,10 +116,10 @@ export function AgentDebateFeed({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
         <div>
           <h2 className="text-sm font-bold text-white">
-            Live Multi-Agent Committee Debate &amp; Tool Calls
+            Live Multi-Agent Workforce Trace &amp; Deterministic Tool Calls
           </h2>
           <p className="text-xs text-slate-400">
-            4 specialized Gemini agents invoking deterministic DCF, Monte Carlo &amp; Macro Shock tools
+            Dynamic specialist fan-out invoking DCF, Prediction EV/Kelly, Black-Scholes, Real Assets &amp; Power-Law engines
           </p>
         </div>
         {isRunning && (
@@ -86,20 +130,53 @@ export function AgentDebateFeed({
         )}
       </div>
 
+      {/* Dynamic Specialist Routing Roster */}
+      {routingPlan && (
+        <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <span>
+              Activated Roster ({routingPlan.activatedSpecialists.length} Agents ·{" "}
+              {routingPlan.jurisdiction} Mandate)
+            </span>
+            <span className="font-mono text-cyan-300">
+              Mode: {routingPlan.analysisMode.replace("_", " ")}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {routingPlan.activatedSpecialists.map((spec, idx) => {
+              const st = ROLE_STYLES[spec.role] || ROLE_STYLES.extractor;
+              return (
+                <span
+                  key={`${spec.role}-${idx}`}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${st.badge}`}
+                >
+                  {spec.label}
+                  {spec.parallel && (
+                    <span className="rounded bg-black/30 px-1 font-mono text-[9px] opacity-80">
+                      ∥
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {turns.length === 0 && !isRunning ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/50 py-10 text-center">
           <Terminal className="h-8 w-8 text-slate-600" />
           <p className="mt-2 text-xs font-medium text-slate-300">
-            Committee ready. Select a scenario or edit your holdings and click Run.
+            Universal Workforce ready. Select any asset class or future outcome and click Run.
           </p>
           <p className="mt-1 max-w-md text-[11px] text-slate-500">
-            Each agent runs a real Gemini reasoning pass backed by Function Calling into our deterministic quantitative finance engine.
+            The Intake Router dynamically spawns the right valuation specialists and maps cross-venue ways to bet on your thesis.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {turns.map((turn) => {
-            const style = ROLE_STYLES[turn.role];
+            const style = ROLE_STYLES[turn.role] || ROLE_STYLES.extractor;
             const Icon = style.icon;
             return (
               <div
@@ -114,10 +191,15 @@ export function AgentDebateFeed({
                       <Icon className="h-4 w-4" />
                     </span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={`text-xs font-bold ${style.accentText}`}>
                           {turn.agentName}
                         </span>
+                        {turn.parallelGroup && (
+                          <span className="rounded bg-slate-800/90 px-1.5 py-0.5 font-mono text-[9px] text-slate-300">
+                            {turn.parallelGroup}
+                          </span>
+                        )}
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                       </div>
                       <p className="text-xs font-medium text-white">{turn.title}</p>

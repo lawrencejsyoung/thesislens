@@ -6,6 +6,7 @@ import { InputWorkbench } from "@/components/InputWorkbench";
 import { AgentDebateFeed } from "@/components/AgentDebateFeed";
 import { CioMemoDashboard } from "@/components/CioMemoDashboard";
 import { QuantAnalyticsPanel } from "@/components/QuantAnalyticsPanel";
+import { AccessExpressionMatrix } from "@/components/AccessExpressionMatrix";
 import { SavedMemosDrawer } from "@/components/SavedMemosDrawer";
 import { PRESET_SCENARIOS } from "@/lib/demo-scenarios";
 import { listSavedMemos, saveMemo } from "@/lib/firebase";
@@ -15,10 +16,13 @@ import {
   CioInvestmentMemo,
   CompleteAnalysisResult,
   DcfResult,
+  ExpressionVehicle,
   MacroShockScenarioResult,
   MonteCarloResult,
   PortfolioMetrics,
+  RoutingPlan,
   StreamEvent,
+  UniversalQuantBundle,
 } from "@/lib/types";
 import { AlertCircle } from "lucide-react";
 
@@ -41,6 +45,9 @@ export default function HomePage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [routingPlan, setRoutingPlan] = useState<RoutingPlan | null>(null);
+  const [expressionVehicles, setExpressionVehicles] = useState<ExpressionVehicle[]>([]);
+  const [universalQuant, setUniversalQuant] = useState<UniversalQuantBundle | null>(null);
   const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
   const [dcfResult, setDcfResult] = useState<DcfResult | null>(null);
   const [monteCarlo, setMonteCarlo] = useState<MonteCarloResult | null>(null);
@@ -56,7 +63,6 @@ export default function HomePage() {
     "idle" | "saving" | "saved-firestore" | "saved-local"
   >("idle");
 
-  // Load health & saved memos on mount, and auto-run the Sudbury Spotlight demo once
   useEffect(() => {
     fetch("/api/health")
       .then((r) => r.json())
@@ -83,11 +89,13 @@ export default function HomePage() {
     const reqPayload = customPayload ?? payload;
     setIsRunning(true);
     setErrorMessage(null);
+    setRoutingPlan(null);
+    setExpressionVehicles([]);
     setDebateTurns([]);
     setCioMemo(null);
     setCompleteResult(null);
     setSaveStatus("idle");
-    setStatusMessage("Initializing Quant Engine & Gemini Agents...");
+    setStatusMessage("Initializing Universal Quant Suite & Specialist Workforce...");
 
     try {
       const headers: Record<string, string> = {
@@ -130,11 +138,17 @@ export default function HomePage() {
             setStatusMessage(event.message);
             setActiveMode(event.mode);
             setModelUsed(event.model);
+          } else if (event.type === "routing_plan") {
+            setRoutingPlan(event.plan);
           } else if (event.type === "quant_ready") {
             setPortfolioMetrics(event.portfolioMetrics);
             setDcfResult(event.dcfResult);
             setMonteCarlo(event.monteCarlo);
             setMacroShocks(event.macroShocks);
+          } else if (event.type === "universal_quant_ready") {
+            setUniversalQuant(event.quant);
+          } else if (event.type === "access_vehicles") {
+            setExpressionVehicles(event.vehicles);
           } else if (event.type === "agent_turn") {
             setDebateTurns((prev) => [...prev, event.turn]);
           } else if (event.type === "cio_memo") {
@@ -148,14 +162,13 @@ export default function HomePage() {
       }
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Failed to run Investment Committee."
+        err instanceof Error ? err.message : "Failed to run Universal Workforce."
       );
     } finally {
       setIsRunning(false);
     }
   };
 
-  // Auto-run the first preset on initial load so the dashboard is immediately alive
   useEffect(() => {
     runAnalysis(PRESET_SCENARIOS[0].payload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +189,9 @@ export default function HomePage() {
     setActivePresetId(null);
     setActiveMode(memo.mode);
     setModelUsed(memo.modelUsed);
+    setRoutingPlan(memo.routingPlan ?? null);
+    setExpressionVehicles(memo.expressionVehicles ?? []);
+    setUniversalQuant(memo.universalQuant ?? null);
     setPortfolioMetrics(memo.portfolioMetrics);
     setDcfResult(memo.dcfResult);
     setMonteCarlo(memo.monteCarlo);
@@ -237,7 +253,16 @@ export default function HomePage() {
               />
             )}
 
-            {/* Quantitative Charts & Interactive DCF */}
+            {/* Market Access & Expression Matrix ("Every Way to Bet") */}
+            {expressionVehicles.length > 0 && (
+              <AccessExpressionMatrix
+                vehicles={expressionVehicles}
+                jurisdiction={routingPlan?.jurisdiction ?? payload.jurisdiction ?? "Canada"}
+                outcomeQuestion={routingPlan?.outcomeQuestion}
+              />
+            )}
+
+            {/* Adaptive Quantitative Labs & Charts */}
             {portfolioMetrics && dcfResult && monteCarlo && macroShocks && (
               <QuantAnalyticsPanel
                 metrics={portfolioMetrics}
@@ -245,14 +270,17 @@ export default function HomePage() {
                 dcfInputs={payload.dcfInputs}
                 monteCarlo={monteCarlo}
                 macroShocks={macroShocks}
+                universalQuant={universalQuant}
+                requestPayload={payload}
               />
             )}
 
-            {/* Live Multi-Agent Debate & Function Call Trace */}
+            {/* Live Multi-Agent DAG Workforce & Function Call Trace */}
             <AgentDebateFeed
               turns={debateTurns}
               isRunning={isRunning}
               statusMessage={statusMessage}
+              routingPlan={routingPlan}
             />
           </div>
         </div>
