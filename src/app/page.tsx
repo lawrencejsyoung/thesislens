@@ -1,0 +1,270 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { Header } from "@/components/Header";
+import { InputWorkbench } from "@/components/InputWorkbench";
+import { AgentDebateFeed } from "@/components/AgentDebateFeed";
+import { CioMemoDashboard } from "@/components/CioMemoDashboard";
+import { QuantAnalyticsPanel } from "@/components/QuantAnalyticsPanel";
+import { SavedMemosDrawer } from "@/components/SavedMemosDrawer";
+import { PRESET_SCENARIOS } from "@/lib/demo-scenarios";
+import { listSavedMemos, saveMemo } from "@/lib/firebase";
+import {
+  AgentDebateTurn,
+  AnalysisRequestPayload,
+  CioInvestmentMemo,
+  CompleteAnalysisResult,
+  DcfResult,
+  MacroShockScenarioResult,
+  MonteCarloResult,
+  PortfolioMetrics,
+  StreamEvent,
+} from "@/lib/types";
+import { AlertCircle } from "lucide-react";
+
+export default function HomePage() {
+  const [activePresetId, setActivePresetId] = useState<string | null>(
+    PRESET_SCENARIOS[0].id
+  );
+  const [payload, setPayload] = useState<AnalysisRequestPayload>(
+    PRESET_SCENARIOS[0].payload
+  );
+
+  const [hasServerKey, setHasServerKey] = useState(false);
+  const [userApiKey, setUserApiKey] = useState("");
+  const [activeMode, setActiveMode] = useState<"live-gemini" | "demo-simulation">(
+    "demo-simulation"
+  );
+  const [modelUsed, setModelUsed] = useState("gemini-2.5-flash");
+
+  const [isRunning, setIsRunning] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
+  const [dcfResult, setDcfResult] = useState<DcfResult | null>(null);
+  const [monteCarlo, setMonteCarlo] = useState<MonteCarloResult | null>(null);
+  const [macroShocks, setMacroShocks] = useState<MacroShockScenarioResult[] | null>(null);
+  const [debateTurns, setDebateTurns] = useState<AgentDebateTurn[]>([]);
+  const [cioMemo, setCioMemo] = useState<CioInvestmentMemo | null>(null);
+  const [completeResult, setCompleteResult] = useState<CompleteAnalysisResult | null>(null);
+
+  const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
+  const [savedMemos, setSavedMemos] = useState<CompleteAnalysisResult[]>([]);
+  const [savedSource, setSavedSource] = useState<"firestore" | "local">("local");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved-firestore" | "saved-local"
+  >("idle");
+
+  // Load health & saved memos on mount, and auto-run the Sudbury Spotlight demo once
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((d) => {
+        setHasServerKey(Boolean(d.hasServerGeminiKey));
+        if (d.defaultModel) setModelUsed(d.defaultModel);
+      })
+      .catch(() => {});
+
+    listSavedMemos().then(({ memos, source }) => {
+      setSavedMemos(memos);
+      setSavedSource(source);
+    });
+  }, []);
+
+  const handleSelectPreset = (id: string) => {
+    const found = PRESET_SCENARIOS.find((p) => p.id === id);
+    if (!found) return;
+    setActivePresetId(id);
+    setPayload(found.payload);
+  };
+
+  const runAnalysis = async (customPayload?: AnalysisRequestPayload) => {
+    const reqPayload = customPayload ?? payload;
+    setIsRunning(true);
+    setErrorMessage(null);
+    setDebateTurns([]);
+    setCioMemo(null);
+    setCompleteResult(null);
+    setSaveStatus("idle");
+    setStatusMessage("Initializing Quant Engine & Gemini Agents...");
+
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (userApiKey.trim()) {
+        headers["x-gemini-api-key"] = userApiKey.trim();
+      }
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(reqPayload),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Analysis request failed (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() || "";
+
+        for (const chunk of chunks) {
+          const line = chunk.trim();
+          if (!line.startsWith("data:")) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+
+          const event = JSON.parse(jsonStr) as StreamEvent;
+          if (event.type === "status") {
+            setStatusMessage(event.message);
+            setActiveMode(event.mode);
+            setModelUsed(event.model);
+          } else if (event.type === "quant_ready") {
+            setPortfolioMetrics(event.portfolioMetrics);
+            setDcfResult(event.dcfResult);
+            setMonteCarlo(event.monteCarlo);
+            setMacroShocks(event.macroShocks);
+          } else if (event.type === "agent_turn") {
+            setDebateTurns((prev) => [...prev, event.turn]);
+          } else if (event.type === "cio_memo") {
+            setCioMemo(event.memo);
+          } else if (event.type === "complete") {
+            setCompleteResult(event.result);
+          } else if (event.type === "error") {
+            setErrorMessage(event.message);
+          }
+        }
+      }
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to run Investment Committee."
+      );
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // Auto-run the first preset on initial load so the dashboard is immediately alive
+  useEffect(() => {
+    runAnalysis(PRESET_SCENARIOS[0].payload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSaveMemo = async () => {
+    if (!completeResult) return;
+    setSaveStatus("saving");
+    const dest = await saveMemo(completeResult);
+    setSaveStatus(dest === "firestore" ? "saved-firestore" : "saved-local");
+    const { memos, source } = await listSavedMemos();
+    setSavedMemos(memos);
+    setSavedSource(source);
+  };
+
+  const handleLoadSaved = (memo: CompleteAnalysisResult) => {
+    setPayload(memo.request);
+    setActivePresetId(null);
+    setActiveMode(memo.mode);
+    setModelUsed(memo.modelUsed);
+    setPortfolioMetrics(memo.portfolioMetrics);
+    setDcfResult(memo.dcfResult);
+    setMonteCarlo(memo.monteCarlo);
+    setMacroShocks(memo.macroShocks);
+    setDebateTurns(memo.debateTurns);
+    setCioMemo(memo.cioMemo);
+    setCompleteResult(memo);
+    setSaveStatus("idle");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#070b14]">
+      <Header
+        hasServerKey={hasServerKey}
+        userApiKey={userApiKey}
+        onSaveApiKey={(key) => {
+          setUserApiKey(key);
+          if (key) setActiveMode("live-gemini");
+        }}
+        activeMode={activeMode}
+        savedCount={savedMemos.length}
+        onOpenSaved={() => setSavedDrawerOpen(true)}
+      />
+
+      <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
+        {errorMessage && (
+          <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          {/* Left Workbench */}
+          <div className="lg:col-span-4 xl:col-span-3">
+            <InputWorkbench
+              payload={payload}
+              onChange={(next) => {
+                setPayload(next);
+                setActivePresetId(null);
+              }}
+              onRun={() => runAnalysis()}
+              isRunning={isRunning}
+              activePresetId={activePresetId}
+              onSelectPreset={handleSelectPreset}
+            />
+          </div>
+
+          {/* Right Intelligence & Quant Canvas */}
+          <div className="space-y-5 lg:col-span-8 xl:col-span-9">
+            {/* CIO Executive Memo */}
+            {cioMemo && (
+              <CioMemoDashboard
+                memo={cioMemo}
+                mode={activeMode}
+                modelUsed={modelUsed}
+                onSaveMemo={handleSaveMemo}
+                savedStatus={saveStatus}
+              />
+            )}
+
+            {/* Quantitative Charts & Interactive DCF */}
+            {portfolioMetrics && dcfResult && monteCarlo && macroShocks && (
+              <QuantAnalyticsPanel
+                metrics={portfolioMetrics}
+                dcfResult={dcfResult}
+                dcfInputs={payload.dcfInputs}
+                monteCarlo={monteCarlo}
+                macroShocks={macroShocks}
+              />
+            )}
+
+            {/* Live Multi-Agent Debate & Function Call Trace */}
+            <AgentDebateFeed
+              turns={debateTurns}
+              isRunning={isRunning}
+              statusMessage={statusMessage}
+            />
+          </div>
+        </div>
+      </main>
+
+      <SavedMemosDrawer
+        open={savedDrawerOpen}
+        onClose={() => setSavedDrawerOpen(false)}
+        memos={savedMemos}
+        source={savedSource}
+        onSelect={handleLoadSaved}
+      />
+    </div>
+  );
+}
