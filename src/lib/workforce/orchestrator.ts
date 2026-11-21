@@ -844,29 +844,47 @@ async function runUniversalDemoTrace(
       emit({ type: "agent_turn", turn: vcTurn });
     } else if (quant.realAssetValuation) {
       const re = quant.realAssetValuation;
+      const topClass = re.classComparison?.[0];
+      const topMarket = re.marketComparison?.[0];
+      const tilt = re.residentialVsCommercial;
+      const breaches = re.lenderCovenantChecks.filter((c) => c.status === "BREACH").length;
       const reTurn: AgentDebateTurn = {
         id: "turn-real-assets",
         role: "real_assets_quant",
-        agentName: "Specialist · Real Assets & Credit Duration Analyst",
-        title: `Property Pro Forma, DSCR & Levered IRR Audit`,
+        agentName: "Specialist · Real Estate & Credit Underwriting Analyst",
+        title: `${re.category === "commercial" ? "Commercial" : "Residential"} Pro Forma, Covenants & Cross-Market Audit`,
         timestamp: nowTime(),
         status: "complete",
         parallelGroup: "Stage 2 · Parallel Specialists",
-        summary: `Modeled ${formatCurrency(re.totalCashInvested)} equity deployment: Year-1 NOI is ${formatCurrency(re.year1Noi)} (${re.goingInCapRatePct}% going-in Cap Rate) with a ${re.dscr}x DSCR and ${re.leveredIrrPct}% projected Levered IRR (${re.equityMultiple}x equity multiple).`,
+        summary: `Underwrote ${re.propertyClassLabel} in ${re.marketName} (${formatCurrency(re.totalCashInvested)} equity, ${re.ltvPct}% LTV): Year-1 NOI is ${formatCurrency(re.year1Noi)} (${re.goingInCapRatePct}% Going-In Cap, ${re.capRateSpreadToBenchmarkBps >= 0 ? "+" : ""}${re.capRateSpreadToBenchmarkBps}bps vs. market) with ${re.dscr}x DSCR, ${re.debtYieldPct}% Debt Yield, and ${re.leveredIrrPct}% Levered IRR (Unlevered ${re.unleveredIrrPct}%, ${re.equityMultiple}x EM).`,
         keyPoints: [
-          `Year-1 Net Cash Flow after debt service (${formatCurrency(re.annualDebtService)}/yr) is ${formatCurrency(re.year1CashFlow)} (${re.cashOnCashPct}% Cash-on-Cash).`,
-          `Projected exit value is ${formatCurrency(re.projectedExitValue)} vs. ${formatCurrency(re.remainingLoanAtExit)} remaining mortgage balance.`,
+          `Year-1 Pre-Tax Cash Flow is ${formatCurrency(re.year1CashFlow)} (${re.cashOnCashPct}% CoC) with ${re.breakEvenOccupancyPct}% Break-Even Occupancy and ${breaches === 0 ? "all lender covenants passing" : `${breaches} lender covenant breach(es)`}.`,
+          topClass && tilt
+            ? `Cross-Class Matrix (${re.marketName}): ${topClass.label} leads at ${topClass.leveredIrrPct}% IRR (${topClass.goingInCapRatePct}% Cap); Residential vs. Commercial tilt favors ${tilt.recommendedTilt} (Resi ${tilt.residentialAvgIrrPct}% vs Comm ${tilt.commercialAvgIrrPct}% avg IRR).`
+            : `Projected exit value is ${formatCurrency(re.projectedExitValue)} vs. ${formatCurrency(re.remainingLoanAtExit)} remaining loan balance.`,
+          topMarket
+            ? `Cross-Market Screener (10 Markets): ${topMarket.marketName} ranks #1 for ${re.propertyClassLabel} (Score ${topMarket.compositeScore}/100, ${topMarket.leveredIrrPct}% IRR, ${topMarket.benchmarkCapRatePct}% Cap).`
+            : `After-tax IRR improves to ${re.afterTaxIrrPct}% aided by ${formatCurrency(re.annualDepreciationShield)}/yr depreciation tax shield.`,
           quant.bondValuation
-            ? `Benchmark 10Y Bond Duration sits at ${quant.bondValuation.modifiedDuration}y (YTM ${quant.bondValuation.ytmPct}%), framing the risk-free hurdle rate.`
+            ? `Cap Rate spread vs. 10Y Benchmark (${quant.bondValuation.ytmPct}% YTM, ${quant.bondValuation.modifiedDuration}y Mod Duration) is ${re.capRateSpreadToRiskFreeBps >= 0 ? "+" : ""}${re.capRateSpreadToRiskFreeBps} bps.`
             : `Compare levered illiquidity against liquid REIT ETFs yielding ~5.5% with zero tenant overhead.`,
         ],
         toolCalls: [
           {
             id: "tc-re-1",
             toolName: "analyze_real_estate_deal",
-            args: {},
-            resultSummary: `Cap ${re.goingInCapRatePct}% | DSCR ${re.dscr}x | CoC ${re.cashOnCashPct}% | Levered IRR ${re.leveredIrrPct}%`,
+            args: { propertyClass: re.propertyClass, marketId: re.marketId },
+            resultSummary: `Cap ${re.goingInCapRatePct}% | DSCR ${re.dscr}x | DY ${re.debtYieldPct}% | CoC ${re.cashOnCashPct}% | Lev IRR ${re.leveredIrrPct}% (Unlev ${re.unleveredIrrPct}%)`,
             durationMs: 8,
+          },
+          {
+            id: "tc-re-2",
+            toolName: "compare_real_estate_markets_and_classes",
+            args: { marketId: re.marketId, propertyClass: re.propertyClass },
+            resultSummary: topClass && topMarket && tilt
+              ? `Top Class: ${topClass.shortLabel} (${topClass.leveredIrrPct}% IRR) | Top Market: ${topMarket.marketName} (${topMarket.compositeScore}/100) | Tilt: ${tilt.recommendedTilt}`
+              : `10-class & 10-market benchmark comparison complete`,
+            durationMs: 11,
           },
         ],
         confidencePct: 87,
@@ -1488,12 +1506,16 @@ Thesis: ${request.thesisPrompt}`,
           model,
           systemInstruction: isVenture
             ? "You are a Venture Power-Law & Private Deals Analyst. You MUST call simulate_venture_powerlaw first. Write 2 sharp sentences on power-law skewness & dilution, followed by 3 bullets citing exact Mean vs Median MOIC, IRR, and breakeven exit valuation."
-            : "You are a Real Assets & Credit Duration Analyst. You MUST call analyze_real_estate_deal and analyze_bond_duration first. Write 2 sharp sentences on cash-flow durability & levered IRR vs bond yields, followed by 3 bullets citing exact Cap Rate, DSCR, IRR, and Bond Duration.",
+            : "You are a Real Estate & Credit Underwriting Analyst covering Residential & Commercial property classes across North American & Global markets. You MUST call analyze_real_estate_deal, compare_real_estate_markets_and_classes, and analyze_bond_duration. Write 2 sharp sentences on NOI durability, lender covenants & cross-market relative value, followed by 3 bullets citing exact Cap Rate vs benchmark, DSCR, Debt Yield, Levered/Unlevered IRR, and Residential vs. Commercial tilt.",
           userPrompt: `Underwrite the deal for "${request.title}".
 Thesis: ${request.thesisPrompt}`,
           allowedToolNames: isVenture
             ? ["simulate_venture_powerlaw"]
-            : ["analyze_real_estate_deal", "analyze_bond_duration"],
+            : [
+                "analyze_real_estate_deal",
+                "compare_real_estate_markets_and_classes",
+                "analyze_bond_duration",
+              ],
           request,
           quant,
         });

@@ -21,9 +21,15 @@ import {
   Jurisdiction,
   LiveMarketQuote,
   OptionStrategyType,
+  RealEstatePropertyClass,
   RiskProfile,
 } from "@/lib/types";
 import { PRESET_SCENARIOS } from "@/lib/demo-scenarios";
+import {
+  buildRealEstatePresetInputs,
+  REAL_ESTATE_CLASSES,
+  REAL_ESTATE_MARKETS,
+} from "@/lib/quant-engine";
 
 interface InputWorkbenchProps {
   payload: AnalysisRequestPayload;
@@ -121,20 +127,11 @@ export function InputWorkbench({
       };
     }
     if (nextMode === "real_assets" && !payload.realEstateInputs) {
-      patch.realEstateInputs = {
-        propertyName: "Cash-Flow Multi-Unit Property",
-        purchasePrice: 680000,
-        downPaymentPct: 20,
-        closingCostsPct: 3,
-        grossAnnualRent: 67200,
-        vacancyRatePct: 4.5,
-        operatingExpenseRatioPct: 32,
-        mortgageRatePct: 5.15,
-        amortizationYears: 25,
-        annualRentGrowthPct: 3.0,
-        holdYears: 7,
-        exitCapRatePct: 6.25,
-      };
+      patch.realEstateInputs = buildRealEstatePresetInputs(
+        "small_multifamily",
+        "sudbury-on",
+        680000
+      );
     }
     if (nextMode === "venture" && !payload.ventureInputs) {
       patch.ventureInputs = {
@@ -539,11 +536,76 @@ export function InputWorkbench({
       )}
 
       {payload.realEstateInputs && activeMode === "real_assets" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-            Real Estate Deal Parameters
-          </span>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+              Real Estate Deal Parameters
+            </span>
+            <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[9px] uppercase text-cyan-300">
+              {payload.realEstateInputs.category ?? "residential"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] text-slate-400">Property Class</label>
+              <select
+                value={payload.realEstateInputs.propertyClass ?? "small_multifamily"}
+                onChange={(e) => {
+                  const nextClass = e.target.value as RealEstatePropertyClass;
+                  const nextMarket = payload.realEstateInputs?.marketId ?? "sudbury-on";
+                  onChange({
+                    ...payload,
+                    realEstateInputs: buildRealEstatePresetInputs(nextClass, nextMarket),
+                  });
+                }}
+                className="mt-0.5 w-full rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-white"
+              >
+                <optgroup label="Residential">
+                  {REAL_ESTATE_CLASSES.filter((c) => c.category === "residential").map(
+                    (c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.shortLabel}
+                      </option>
+                    )
+                  )}
+                </optgroup>
+                <optgroup label="Commercial">
+                  {REAL_ESTATE_CLASSES.filter((c) => c.category === "commercial").map(
+                    (c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.shortLabel}
+                      </option>
+                    )
+                  )}
+                </optgroup>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-slate-400">Market</label>
+              <select
+                value={payload.realEstateInputs.marketId ?? "sudbury-on"}
+                onChange={(e) => {
+                  const nextMarket = e.target.value;
+                  const nextClass =
+                    payload.realEstateInputs?.propertyClass ?? "small_multifamily";
+                  onChange({
+                    ...payload,
+                    realEstateInputs: buildRealEstatePresetInputs(nextClass, nextMarket),
+                  });
+                }}
+                className="mt-0.5 w-full rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-white"
+              >
+                {REAL_ESTATE_MARKETS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-[9px] text-slate-400">Price ($)</label>
               <input

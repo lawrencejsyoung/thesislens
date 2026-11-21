@@ -29,6 +29,7 @@ import {
   Target,
 } from "lucide-react";
 import { CfaHedgeFundLab } from "@/components/CfaHedgeFundLab";
+import { RealEstateAnalysisLab } from "@/components/RealEstateAnalysisLab";
 import {
   AnalysisRequestPayload,
   DcfInputs,
@@ -39,7 +40,6 @@ import {
   UniversalQuantBundle,
 } from "@/lib/types";
 import {
-  analyzeRealEstateDeal,
   evaluatePredictionBet,
   priceOptionStrategy,
   runDcfValuation,
@@ -211,24 +211,8 @@ export function QuantAnalyticsPanel({
     });
   }, [hasOptions, optBase, optIv, optDte, dcfInputs]);
 
-  // ── Real Estate Interactive Sliders ──
-  const reBase = requestPayload?.realEstateInputs;
-  const [reRate, setReRate] = useState<number>(reBase?.mortgageRatePct ?? 5.15);
-  const [reExitCap, setReExitCap] = useState<number>(reBase?.exitCapRatePct ?? 6.25);
-  useEffect(() => {
-    if (!reBase) return;
-    setReRate(reBase.mortgageRatePct);
-    setReExitCap(reBase.exitCapRatePct);
-  }, [reBase]);
-
-  const liveRealEstate = useMemo(() => {
-    if (!hasRealAssets || !reBase) return universalQuant?.realAssetValuation ?? null;
-    return analyzeRealEstateDeal({
-      ...reBase,
-      mortgageRatePct: reRate,
-      exitCapRatePct: reExitCap,
-    });
-  }, [hasRealAssets, reBase, reRate, reExitCap, universalQuant]);
+  // ── Real Estate KPI Summary ──
+  const liveRealEstate = universalQuant?.realAssetValuation ?? null;
 
   // ── Venture Power-Law Interactive Sliders ──
   const vcBase = requestPayload?.ventureInputs;
@@ -349,14 +333,12 @@ export function QuantAnalyticsPanel({
                 label="Options Payoff & Greeks"
               />
             )}
-            {hasRealAssets && (
-              <TabButton
-                active={activeTab === "real_assets"}
-                onClick={() => setActiveTab("real_assets")}
-                icon={Building2}
-                label="Real Assets & Credit"
-              />
-            )}
+            <TabButton
+              active={activeTab === "real_assets"}
+              onClick={() => setActiveTab("real_assets")}
+              icon={Building2}
+              label="Real Estate Lab"
+            />
             {hasVenture && (
               <TabButton
                 active={activeTab === "venture"}
@@ -725,158 +707,12 @@ export function QuantAnalyticsPanel({
           </div>
         )}
 
-        {/* TAB: REAL ASSETS & CREDIT LAB */}
-        {activeTab === "real_assets" && liveRealEstate && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3.5 lg:col-span-5">
-              <div>
-                <span className="text-xs font-bold text-white">
-                  {liveRealEstate.propertyName}
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Cash Invested {fmtUsd(liveRealEstate.totalCashInvested)} · Loan {fmtUsd(liveRealEstate.loanAmount)}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Mortgage Rate</span>
-                  <span className="font-mono font-bold text-amber-300">
-                    {reRate.toFixed(2)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={2.5}
-                  max={8.5}
-                  step={0.15}
-                  value={reRate}
-                  onChange={(e) => setReRate(Number(e.target.value))}
-                  className="mt-1 w-full accent-amber-500"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Exit Cap Rate</span>
-                  <span className="font-mono font-bold text-cyan-300">
-                    {reExitCap.toFixed(2)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={4.0}
-                  max={9.0}
-                  step={0.25}
-                  value={reExitCap}
-                  onChange={(e) => setReExitCap(Number(e.target.value))}
-                  className="mt-1 w-full accent-cyan-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 border-t border-slate-800 pt-2.5 text-[11px]">
-                <div>
-                  <span className="text-slate-500">Year-1 NOI / Cash Flow</span>
-                  <div className="font-mono font-bold text-emerald-300">
-                    {fmtUsd(liveRealEstate.year1Noi)} / {fmtUsd(liveRealEstate.year1CashFlow)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-500">DSCR / Cap Rate</span>
-                  <div className="font-mono font-bold text-white">
-                    {liveRealEstate.dscr}x / {liveRealEstate.goingInCapRatePct}%
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-500">Levered IRR</span>
-                  <div className="font-mono font-bold text-emerald-400">
-                    {liveRealEstate.leveredIrrPct}% ({liveRealEstate.equityMultiple}x EM)
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-500">Cash-on-Cash</span>
-                  <div className="font-mono font-bold text-cyan-300">
-                    {liveRealEstate.cashOnCashPct}%
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3.5 lg:col-span-7">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-bold text-white">
-                  Mortgage Rate vs. Exit Cap Rate Sensitivity (Levered IRR % / CoC %)
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-center font-mono text-[11px]">
-                  <thead>
-                    <tr className="text-slate-400">
-                      <th className="p-1.5 text-left text-[10px]">Rate \ Exit Cap</th>
-                      {Array.from(
-                        new Set(liveRealEstate.sensitivityGrid.map((c) => c.exitCapRatePct))
-                      ).map((c) => (
-                        <th key={c} className="p-1.5">
-                          {c}%
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from(
-                      new Set(liveRealEstate.sensitivityGrid.map((c) => c.mortgageRatePct))
-                    ).map((r) => (
-                      <tr key={r} className="border-t border-slate-800/70">
-                        <td className="p-1.5 text-left font-semibold text-slate-300">
-                          {r}%
-                        </td>
-                        {Array.from(
-                          new Set(liveRealEstate.sensitivityGrid.map((c) => c.exitCapRatePct))
-                        ).map((cap) => {
-                          const cell = liveRealEstate.sensitivityGrid.find(
-                            (c) => c.mortgageRatePct === r && c.exitCapRatePct === cap
-                          );
-                          if (!cell) return <td key={cap} />;
-                          const bg =
-                            cell.leveredIrrPct >= 14
-                              ? "bg-emerald-500/25 text-emerald-200"
-                              : cell.leveredIrrPct >= 9
-                              ? "bg-emerald-500/10 text-emerald-300"
-                              : cell.leveredIrrPct >= 4
-                              ? "bg-amber-500/10 text-amber-300"
-                              : "bg-rose-500/20 text-rose-300";
-                          return (
-                            <td key={cap} className="p-1">
-                              <div className={`rounded-md px-2 py-1.5 ${bg}`}>
-                                <div className="font-bold">{cell.leveredIrrPct}% IRR</div>
-                                <div className="text-[9px] opacity-80">
-                                  CoC {cell.cashOnCashPct}%
-                                </div>
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {universalQuant?.bondValuation && (
-                <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 text-[11px]">
-                  <span className="font-bold text-sky-300">
-                    Fixed Income Benchmark ({universalQuant.bondValuation.issuer}):
-                  </span>{" "}
-                  YTM {universalQuant.bondValuation.ytmPct}% · Mod Duration{" "}
-                  {universalQuant.bondValuation.modifiedDuration}y · Convexity{" "}
-                  {universalQuant.bondValuation.convexity} · +100bps Shock:{" "}
-                  <span className="font-mono text-rose-300">
-                    {universalQuant.bondValuation.rateShocks.find((s) => s.bpsChange === 100)?.pctChange}%
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* TAB: COMPREHENSIVE REAL ESTATE ANALYSIS LAB (RESIDENTIAL & COMMERCIAL) */}
+        {activeTab === "real_assets" && (
+          <RealEstateAnalysisLab
+            initialInputs={requestPayload?.realEstateInputs}
+            bondValuation={universalQuant?.bondValuation}
+          />
         )}
 
         {/* TAB: VENTURE POWER-LAW LAB */}

@@ -12,7 +12,19 @@ import { stressTestCrossAssetShocks } from "./quant/cross-asset-stress";
 
 export { evaluatePredictionBet } from "./quant/prediction-ev";
 export { priceOptionStrategy, priceBlackScholesOption } from "./quant/options-bsm";
-export { analyzeRealEstateDeal, analyzeBondDuration } from "./quant/real-assets-credit";
+export {
+  analyzeRealEstateDeal,
+  analyzeBondDuration,
+  buildRealEstatePresetInputs,
+  compareRealEstateClasses,
+  compareRealEstateMarkets,
+  getBenchmarkCapRatePct,
+  getRealEstateClass,
+  getRealEstateMarket,
+  REAL_ESTATE_CLASSES,
+  REAL_ESTATE_MARKETS,
+  summarizeResidentialVsCommercial,
+} from "./quant/real-assets-credit";
 export { simulateVenturePowerLaw } from "./quant/venture-powerlaw";
 export { stressTestCrossAssetShocks } from "./quant/cross-asset-stress";
 export {

@@ -204,19 +204,104 @@ export interface OptionValuationResult {
 }
 
 // ── Real Estate & Real Assets ──
+export type RealEstateCategory = "residential" | "commercial";
+
+export type RealEstatePropertyClass =
+  | "single_family"
+  | "small_multifamily"
+  | "apartments_multifamily"
+  | "student_housing"
+  | "short_term_rental"
+  | "industrial_logistics"
+  | "retail_nnn"
+  | "office_class_a"
+  | "mixed_use"
+  | "data_center_specialty";
+
+export type RealEstateLeaseStructure =
+  | "gross"
+  | "modified_gross"
+  | "nnn"
+  | "short_term";
+
+export type RealEstateMarketTier =
+  | "Gateway"
+  | "Growth Sunbelt"
+  | "Secondary Value"
+  | "Resource / Regional";
+
+export interface RealEstateMarketBenchmark {
+  id: string;
+  name: string;
+  region: "Canada" | "US" | "Global";
+  tier: RealEstateMarketTier;
+  populationGrowthPct: number;
+  jobGrowthPct: number;
+  medianHouseholdIncomeUsd: number;
+  supplyPipelinePct: number; // % of existing stock under construction
+  propertyTaxRatePct: number;
+  landlordFriendlyScore: number; // 0-100
+  rentControlRisk: "Low" | "Moderate" | "High";
+  baseResidentialCapPct: number;
+  baseCommercialCapPct: number;
+  baseRentGrowthPct: number;
+  baseVacancyPct: number;
+  macroScore: number; // 0-100 composite market fundamental score
+  highlights: string;
+}
+
+export interface RealEstateClassProfile {
+  id: RealEstatePropertyClass;
+  label: string;
+  shortLabel: string;
+  category: RealEstateCategory;
+  defaultLeaseStructure: RealEstateLeaseStructure;
+  capRateSpreadBps: number; // spread vs market base cap rate
+  typicalVacancyPct: number;
+  typicalOpexRatioPct: number;
+  typicalCapexReservePct: number;
+  reimbursementRecoveryPct: number; // % of OpEx reimbursed by tenants (e.g. NNN = 85%)
+  typicalLtvPct: number;
+  debtSpreadOverTreasuryPct: number;
+  typicalAmortYears: number;
+  typicalHoldYears: number;
+  rentGrowthModifierPct: number;
+  minLenderDscr: number;
+  minDebtYieldPct: number;
+  volatilityPct: number;
+  liquidityScore: number; // 0-100
+  managementIntensity: "Low" | "Moderate" | "High";
+  unitLabel: "units" | "sq ft";
+  defaultUnitsOrSqft: number;
+  defaultPurchasePrice: number;
+  description: string;
+}
+
 export interface RealEstateInputs {
   propertyName: string;
+  category?: RealEstateCategory;
+  propertyClass?: RealEstatePropertyClass;
+  marketId?: string;
+  leaseStructure?: RealEstateLeaseStructure;
+  unitsOrSqft?: number;
   purchasePrice: number;
   downPaymentPct: number;
   closingCostsPct: number;
+  renovationCapex?: number; // upfront value-add / TI / renovation budget
   grossAnnualRent: number;
   vacancyRatePct: number;
   operatingExpenseRatioPct: number; // % of effective gross income
+  capexReservePct?: number; // % of EGI reserved for CapEx / TI & LC
+  reimbursementRecoveryPct?: number; // % of OpEx recovered via NNN / CAM
+  expenseGrowthPct?: number; // annual OpEx inflation %
   mortgageRatePct: number;
   amortizationYears: number;
+  interestOnlyYears?: number; // optional IO period (common in commercial/bridge)
   annualRentGrowthPct: number;
   holdYears: number;
   exitCapRatePct: number;
+  depreciationBasisPct?: number; // building value % of purchase price (default 75%)
+  marginalTaxRatePct?: number; // investor marginal tax rate % (default 35%)
 }
 
 export interface RealEstateSensitivityCell {
@@ -226,22 +311,121 @@ export interface RealEstateSensitivityCell {
   cashOnCashPct: number;
 }
 
+export interface RealEstateYearProjection {
+  year: number;
+  grossPotentialRent: number;
+  vacancyLoss: number;
+  reimbursements: number;
+  effectiveGrossIncome: number;
+  operatingExpenses: number;
+  capexReserve: number;
+  noi: number;
+  debtService: number;
+  cashFlowBeforeTax: number;
+  loanBalance: number;
+  impliedPropertyValue: number;
+  netEquity: number;
+}
+
+export interface RealEstateCovenantCheck {
+  name: string;
+  limit: string;
+  actual: string;
+  status: "PASS" | "WARN" | "BREACH";
+  detail: string;
+}
+
+export interface RealEstateClassComparisonItem {
+  propertyClass: RealEstatePropertyClass;
+  label: string;
+  shortLabel: string;
+  category: RealEstateCategory;
+  leaseStructure: RealEstateLeaseStructure;
+  goingInCapRatePct: number;
+  cashOnCashPct: number;
+  dscr: number;
+  debtYieldPct: number;
+  leveredIrrPct: number;
+  unleveredIrrPct: number;
+  equityMultiple: number;
+  volatilityPct: number;
+  riskAdjustedScore: number; // 0-100
+  managementIntensity: "Low" | "Moderate" | "High";
+  verdict: "Attractive" | "Core Hold" | "Watch / Tight";
+}
+
+export interface RealEstateMarketComparisonItem {
+  marketId: string;
+  marketName: string;
+  region: "Canada" | "US" | "Global";
+  tier: RealEstateMarketTier;
+  populationGrowthPct: number;
+  jobGrowthPct: number;
+  supplyPipelinePct: number;
+  rentControlRisk: "Low" | "Moderate" | "High";
+  benchmarkCapRatePct: number;
+  projectedRentGrowthPct: number;
+  cashOnCashPct: number;
+  dscr: number;
+  leveredIrrPct: number;
+  compositeScore: number; // 0-100
+  verdict: "Top Pick" | "Balanced" | "Yield-Constrained";
+}
+
+export interface ResidentialVsCommercialSummary {
+  residentialAvgCapPct: number;
+  commercialAvgCapPct: number;
+  residentialAvgIrrPct: number;
+  commercialAvgIrrPct: number;
+  residentialAvgDscr: number;
+  commercialAvgDscr: number;
+  residentialAvgCoCPct: number;
+  commercialAvgCoCPct: number;
+  recommendedTilt: "Residential Core" | "Commercial Yield" | "Barbell 50/50";
+  rationale: string;
+}
+
 export interface RealEstateValuationResult {
   propertyName: string;
+  category: RealEstateCategory;
+  propertyClass: RealEstatePropertyClass;
+  propertyClassLabel: string;
+  marketId: string;
+  marketName: string;
+  leaseStructure: RealEstateLeaseStructure;
+  unitsOrSqft: number;
+  unitLabel: "units" | "sq ft";
   totalCashInvested: number;
   loanAmount: number;
+  ltvPct: number;
   year1Noi: number;
   annualDebtService: number;
   year1CashFlow: number;
   goingInCapRatePct: number;
+  benchmarkCapRatePct: number;
+  capRateSpreadToBenchmarkBps: number;
+  capRateSpreadToRiskFreeBps: number;
   cashOnCashPct: number;
   dscr: number;
+  debtYieldPct: number;
+  breakEvenOccupancyPct: number;
   grossRentMultiplier: number;
+  pricePerUnitOrSqft: number;
+  noiPerUnitOrSqft: number;
   projectedExitValue: number;
   remainingLoanAtExit: number;
   leveredIrrPct: number;
+  unleveredIrrPct: number;
+  afterTaxIrrPct: number;
+  annualDepreciationShield: number;
   equityMultiple: number;
+  unleveredEquityMultiple: number;
+  yearlyCashFlows: RealEstateYearProjection[];
+  lenderCovenantChecks: RealEstateCovenantCheck[];
   sensitivityGrid: RealEstateSensitivityCell[];
+  classComparison?: RealEstateClassComparisonItem[];
+  marketComparison?: RealEstateMarketComparisonItem[];
+  residentialVsCommercial?: ResidentialVsCommercialSummary;
 }
 
 // ── Fixed Income / Credit ──

@@ -4,7 +4,10 @@ import {
   analyzeHedgeFundRisk,
   analyzePortfolioMetrics,
   analyzeRealEstateDeal,
+  compareRealEstateClasses,
+  compareRealEstateMarkets,
   evaluatePredictionBet,
+  getRealEstateMarket,
   priceOptionStrategy,
   runCfaForensicAnalysis,
   runDcfValuation,
@@ -12,6 +15,7 @@ import {
   runMonteCarloSimulation,
   simulateVenturePowerLaw,
   stressTestMacroShocks,
+  summarizeResidentialVsCommercial,
 } from "@/lib/quant-engine";
 import {
   BondInputs,
@@ -21,6 +25,7 @@ import {
   OptionStrategyInputs,
   PredictionBetInputs,
   RealEstateInputs,
+  RealEstatePropertyClass,
   VentureDealInputs,
 } from "@/lib/types";
 
@@ -35,6 +40,7 @@ export async function POST(req: NextRequest) {
         | "prediction"
         | "options"
         | "real_estate"
+        | "real_estate_matrix"
         | "bond"
         | "venture"
         | "cfa_forensics"
@@ -68,6 +74,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         analyzeRealEstateDeal(body.realEstateInputs as RealEstateInputs)
       );
+    }
+    if (type === "real_estate_matrix") {
+      const marketId = String(body.marketId || "sudbury-on");
+      const propertyClass = (body.propertyClass ||
+        "small_multifamily") as RealEstatePropertyClass;
+      const rateOffsetPct = Number(body.rateOffsetPct) || 0;
+      const market = getRealEstateMarket(marketId);
+      const classComparison = compareRealEstateClasses(market.id, rateOffsetPct);
+      const marketComparison = compareRealEstateMarkets(propertyClass, rateOffsetPct);
+      const residentialVsCommercial = summarizeResidentialVsCommercial(
+        classComparison,
+        market
+      );
+      return NextResponse.json({
+        market,
+        propertyClass,
+        classComparison,
+        marketComparison,
+        residentialVsCommercial,
+      });
     }
     if (type === "bond") {
       return NextResponse.json(
