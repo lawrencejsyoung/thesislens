@@ -29,8 +29,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
-# Create non-root user & group
-RUN addgroup --system --gid 1001 nodejs \
+# Apply OS security patches, remove npm/npx/corepack (not needed at runtime and
+# a frequent source of container CVEs), then create non-root user & group
+RUN apk upgrade --no-cache \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 # Copy only the minimal standalone output + static assets
