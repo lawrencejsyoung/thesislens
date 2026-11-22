@@ -22,7 +22,7 @@
     "audit:models": "tsx scripts/audit-models.ts"
   },
   "dependencies": {
-    "@google/genai": "^1.0.0",
+    "@google/genai": "^3.6.1",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "firebase": "^11.6.0",
     "lucide-react": "^0.511.0",
