@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   security-events: write
   pull-requests: read
 
@@ -100,8 +101,19 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
+      - name: Upload Trivy report as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+          if-no-files-found: ignore
+
+      # Requires GitHub Advanced Security on private repos; best-effort so the
+      # Trivy scan step above remains the blocking security gate.
       - name: Upload Trivy scan results to GitHub Security
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
