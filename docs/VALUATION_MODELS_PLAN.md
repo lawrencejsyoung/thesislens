@@ -6,7 +6,7 @@ three-statement models driven by business drivers, anchored to guidance and cons
 valued with sector-appropriate methods, and updated after every filing.
 
 **Status (2026-11-22):** Phases 1 and 2 are complete on branch `claude/sleepy-johnson-9ngojn`.
-Phases 3–6 haven't started.
+Phases 3–6 haven't started. All open decisions (D1–D4) are decided; see [Decisions](#decisions).
 
 ---
 
@@ -112,12 +112,15 @@ transcripts and filing text.
     that differ from guidance without an explanation.
 - **Cost:** sector instructions, the template schema and worked examples form a shared prompt
   prefix that gets cached, so each company pays only for its own pack.
-- **Provider:** an `AnalystModel` interface. Gemini stays the default and other providers can be
-  added (see decision D4).
+- **Provider (D4):** an `AnalystModel` interface. Gemini is the default; other providers are
+  adapters selected by `ANALYST_PROVIDER`.
+- **Data providers (D1):** introduce the `FundamentalsProvider`, `MarketDataProvider`,
+  `RatesProvider` and `ConsensusProvider` interfaces, wrap the SEC client as the first
+  implementation, and add FRED rates as the first free `RatesProvider`.
 
 ## Phase 4: storage, automatic refresh and UI
 
-- **Postgres on Cloud SQL, with pgvector for text search** (see decision D3). Tables:
+- **Postgres on Cloud SQL, with pgvector for text search** (decision D3). Tables:
   - `companies`
   - `facts` (with filing dates)
   - `kpis`
@@ -142,7 +145,7 @@ transcripts and filing text.
 - For 50 companies, rebuild the model as of each of the last 8 quarters using `asOf`
   (Phase 1 already supports this).
 - Measure next-quarter revenue and EPS error against a naive seasonal baseline. Comparing
-  against historical consensus needs a vendor (decision D1).
+  against historical consensus needs a paid `ConsensusProvider`, which is optional under D1.
 - **Gate:** coverage doesn't expand until the models beat the baseline.
 
 ## Phase 6: full coverage
@@ -165,15 +168,14 @@ transcripts and filing text.
 
 ## Decisions
 
-These need an answer from the project owner. Each has a working default so building can
-continue.
+All four were decided by the project owner on 2026-11-22.
 
-| # | Decision | Options | Current default | What depends on it |
-|---|---|---|---|---|
-| D1 | **Data budget** | (a) free only: SEC, FRED, Damodaran; (b) cheap feed (FMP, EODHD, ~$20–100/mo); (c) institutional (FactSet, LSEG, Visible Alpha) | (a) free only | **Share prices:** today `currentPrice` must be passed in by hand. **Rates:** the risk-free rate (4.25%) and ERP (4.5%) are fixed defaults. **Betas:** sector approximations, not regressions. **Also:** the real top-500 ranking, consensus comparison (Phase 5) and non-US coverage (Phase 6). |
-| D2 | **SEC contact string** | Any "AppName contact@domain" | Generic string, no email | The SEC asks every client to identify itself and can block anonymous traffic. Set `SEC_USER_AGENT` before deploying. |
-| D3 | **Storage** | (a) Postgres on Cloud SQL + pgvector; (b) stay on file cache + Firestore; (c) other | File cache under `.cache/sec` (Phases 1–3 need nothing more) | Phase 4: versioned models, the filing-text index, refresh jobs. |
-| D4 | **LLM for the analyst** | (a) keep Gemini; (b) add Claude as an option behind the same interface; (c) switch | Not decided; nothing LLM-related changed yet | Phase 3: the analyst step that writes cited assumptions. |
+| # | Decision | Choice | What it means for the build |
+|---|---|---|---|
+| D1 | **Data budget** | **Free sources only for now, built so paid providers can plug in later.** | Data comes from SEC EDGAR, FRED and Damodaran. Every external input goes behind a provider interface with a free implementation, so a paid vendor (FMP, EODHD, FactSet, LSEG, Visible Alpha) is a new adapter, not a rewrite. The interfaces: `FundamentalsProvider` (SEC today), `MarketDataProvider` (prices, betas, market caps; until a feed is added, the caller passes the price by hand), `RatesProvider` (risk-free rate and ERP; fixed defaults today, FRED next), `ConsensusProvider` (none today). Phase 5 compares against a naive seasonal baseline until a consensus provider exists. |
+| D2 | **SEC contact string** | **App name "ThesisLens" plus the owner's contact email.** | The code reads it from `SEC_USER_AGENT`, and the value is kept out of the repo. Set it in `.env.local` for local runs, and as the GitHub repository variable `SEC_USER_AGENT` for Cloud Run (`deploy-gcp.yml` passes it through, along with `SEC_CACHE_DIR=/tmp/sec`). |
+| D3 | **Storage** | **Postgres on Cloud SQL with pgvector.** | Phase 4 adds the schema (`companies`, `facts`, `kpis`, `guidance`, `doc_chunks` with embeddings, `model_versions`, `runs`) and migrations. Cloud Run connects through the Cloud SQL connector. The file cache stays as the SEC response cache. |
+| D4 | **LLM for the analyst** | **Gemini by default, with other providers as options.** | Phase 3 defines an `AnalystModel` interface (structured output plus tool calls). The default implementation uses `@google/genai` and `GEMINI_MODEL`. Other providers (e.g. Claude, OpenAI) are separate adapters chosen by an `ANALYST_PROVIDER` env var. Nothing outside the adapter depends on the provider. |
 
 ## Known limitations (as of Phase 2)
 
