@@ -115,3 +115,69 @@ export function rateLimitHeaders(result: RateLimitResult): Record<string, string
 export function resetRateLimitStore(): void {
   buckets.clear();
 }
+
+export interface DistributedRateLimitStore {
+  check(bucketKey: string, config: RateLimitConfig): Promise<RateLimitResult>;
+}
+
+/**
+ * Distributed Redis REST rate limiter (Upstash / Memorystore HTTP proxy) for
+ * multi-instance Cloud Run deployments. Falls back to local sliding-window on error.
+ */
+export class RedisRestRateLimitStore implements DistributedRateLimitStore {
+  constructor(
+    private readonly restUrl: string,
+    private readonly restToken: string
+  ) {}
+
+  async check(bucketKey: string, config: RateLimitConfig): Promise<RateLimitResult> {
+    const now = Date.now();
+    const windowSec = Math.max(1, Math.ceil(config.windowMs / 1000));
+    const windowBucket = Math.floor(now / config.windowMs);
+    const redisKey = `tl:rl:${bucketKey}:${windowBucket}`;
+
+    try {
+      const resp = await fetch(`${this.restUrl.replace(/\/$/, "")}/pipeline`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.restToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([
+          ["INCR", redisKey],
+          ["EXPIRE", redisKey, String(windowSec + 1)],
+        ]),
+        signal: AbortSignal.timeout(1500),
+      });
+      if (!resp.ok) {
+        return checkRateLimit(bucketKey, config, now);
+      }
+      const data = (await resp.json()) as Array<{ result?: number }>;
+      const count = Number(data?.[0]?.result ?? 1);
+      const resetAtMs = (windowBucket + 1) * config.windowMs;
+      const allowed = count <= config.limit;
+      return {
+        allowed,
+        limit: config.limit,
+        remaining: Math.max(0, config.limit - count),
+        resetAtMs,
+        retryAfterSec: allowed ? 0 : Math.max(1, Math.ceil((resetAtMs - now) / 1000)),
+      };
+    } catch {
+      return checkRateLimit(bucketKey, config, now);
+    }
+  }
+}
+
+export async function checkDistributedRateLimit(
+  bucketKey: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const restUrl = process.env.REDIS_REST_URL?.trim();
+  const restToken = process.env.REDIS_REST_TOKEN?.trim();
+  if (restUrl && restToken) {
+    const store = new RedisRestRateLimitStore(restUrl, restToken);
+    return store.check(bucketKey, config);
+  }
+  return checkRateLimit(bucketKey, config);
+}

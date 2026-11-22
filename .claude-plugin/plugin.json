@@ -1,0 +1,12 @@
+{
+  "name": "thesislens",
+  "version": "1.0.0",
+  "description": "Deterministic financial valuation, SEC EDGAR 3-statement models, portfolio macro stress tests, global tax wrappers, and adversarial investment committee tools for Claude.",
+  "author": {
+    "name": "ThesisLens"
+  },
+  "mcpServers": "./.mcp.json",
+  "skills": [
+    "./skills/thesislens-analyst/SKILL.md"
+  ]
+}

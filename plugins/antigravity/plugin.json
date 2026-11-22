@@ -1,0 +1,10 @@
+{
+  "name": "thesislens",
+  "version": "1.0.0",
+  "description": "Institutional-grade valuation, SEC EDGAR fundamentals, portfolio stress testing, cross-border tax optimization, and adversarial investment committee plugin for retail investors, financial advisors, and hedge fund managers.",
+  "author": "ThesisLens",
+  "mcpServers": "./.mcp.json",
+  "skills": [
+    "./skills/thesislens-analyst/SKILL.md"
+  ]
+}

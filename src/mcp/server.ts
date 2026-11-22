@@ -1,6 +1,8 @@
 import { profiles } from "../lib/workspaces";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { RequestContext } from "../lib/auth/types";
+import { buildCalculationProvenance, recordAuditEvent } from "../lib/compliance/provenance";
 import {
   FOREIGN_REAL_ESTATE_MARKETS,
   REAL_ESTATE_CLASSES,
@@ -53,9 +55,45 @@ import {
 export interface ThesisLensMcpOptions {
   /** Optional Gemini API key override (falls back to process.env.GEMINI_API_KEY). */
   geminiApiKey?: string;
+  /** Optional authenticated tenant/user context for provenance, RBAC, and audit logging. */
+  requestContext?: RequestContext;
 }
 
-function toToolResult(out: DecisionToolOutput) {
+function toToolResult(
+  out: DecisionToolOutput,
+  meta?: {
+    toolName: string;
+    input: unknown;
+    deterministic: boolean;
+    ctx?: RequestContext;
+  }
+) {
+  const provenance = meta
+    ? buildCalculationProvenance({
+        toolName: meta.toolName,
+        input: meta.input,
+        output: out.data,
+        deterministic: meta.deterministic,
+        profile: meta.ctx?.profile ?? "retail",
+      })
+    : undefined;
+
+  if (meta?.ctx && provenance) {
+    recordAuditEvent({
+      orgId: meta.ctx.orgId,
+      userId: meta.ctx.userId,
+      surface: meta.ctx.surface,
+      action: "mcp:tool_call",
+      toolName: meta.toolName,
+      inputHash: provenance.inputHash,
+      outputHash: provenance.outputHash,
+      provenanceHash: provenance.provenanceHash,
+      tokensUsed: 0,
+      costUsd: 0,
+      status: "ok",
+    });
+  }
+
   return {
     content: [
       {
@@ -66,6 +104,7 @@ function toToolResult(out: DecisionToolOutput) {
     structuredContent: {
       summary: out.summary,
       ...out.data,
+      ...(provenance ? { provenance } : {}),
     },
   };
 }
@@ -120,7 +159,12 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     },
     async (args) => {
       try {
-        return toToolResult(handleDcfValuation(args));
+        return toToolResult(handleDcfValuation(args), {
+          toolName: "run_dcf_valuation",
+          input: args,
+          deterministic: true,
+          ctx: options.requestContext,
+        });
       } catch (err) {
         return toErrorResult(err);
       }
@@ -156,7 +200,12 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     },
     async (args) => {
       try {
-        return toToolResult(handlePortfolioRisk(args));
+        return toToolResult(handlePortfolioRisk(args), {
+          toolName: "analyze_portfolio_risk",
+          input: args,
+          deterministic: true,
+          ctx: options.requestContext,
+        });
       } catch (err) {
         return toErrorResult(err);
       }
@@ -372,7 +421,12 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     },
     async (args) => {
       try {
-        return toToolResult(await handleBuildCompanyModel(args));
+        return toToolResult(await handleBuildCompanyModel(args), {
+          toolName: "build_company_model",
+          input: args,
+          deterministic: true,
+          ctx: options.requestContext,
+        });
       } catch (err) {
         return toErrorResult(err);
       }
@@ -444,7 +498,12 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     },
     async (args) => {
       try {
-        return toToolResult(await handleRunAdversarialCommittee(args, options.geminiApiKey));
+        return toToolResult(await handleRunAdversarialCommittee(args, options.geminiApiKey), {
+          toolName: "run_adversarial_committee",
+          input: args,
+          deterministic: false,
+          ctx: options.requestContext,
+        });
       } catch (err) {
         return toErrorResult(err);
       }
