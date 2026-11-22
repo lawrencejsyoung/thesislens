@@ -4,6 +4,12 @@ Built for **Hack @ DevFest Sudbury 2026 (GDG Sudbury / MLH Hack Day)**.
 
 **ThesisLens** is an institutional-grade finance & investing intelligence system where **Google Gemini is the core reasoning and orchestration engine—not a thin chat wrapper**. It combines a **4-agent Gemini Investment Committee**, **real Gemini Function Calling** into a deterministic quantitative finance engine, **Multimodal Vision** for earnings slides / brokerage screenshots / 10-K PDFs, **Structured JSON Outputs**, and **Firebase Firestore** persistence.
 
+## Using the workspace
+
+Choose your profile in the header to open a starter portfolio, retail research case, client plan, or long/short mandate. Open **Tools** for the full workspace directory or **Scenario library** for specialist examples. Review the inputs, select **Run analysis**, and open **Ask the committee** to inspect the reasoning and calculations. Memos are available from the header.
+
+The [workspace design system](docs/DESIGN_SYSTEM.md) describes the four user journeys, shared components, and agent interactions.
+
 ---
 
 ## Why This Wins (GDE Evaluation Highlights)
@@ -18,7 +24,7 @@ Built for **Hack @ DevFest Sudbury 2026 (GDG Sudbury / MLH Hack Day)**.
 3. **Northern Ontario / Sudbury Relevance**:
    - Includes a dedicated **"Sudbury Critical Minerals & AI Grid"** scenario (Vale Sudbury Nickel/Copper, Cameco Uranium, Eaton Grid Power, Alphabet AI Cloud, Canadian Bonds) alongside AI Semiconductor Core and Canadian TFSA All-Weather scenarios.
 4. **Live Booth Demo Ready**:
-   - Runs **100% live** with any free Google Gemini API key (`GEMINI_API_KEY` in `.env.local` or pasted in the in-app **Connect Gemini Key** modal).
+   - Runs **100% live** with any free Google Gemini API key (`GEMINI_API_KEY` in `.env.local` or pasted in the in-app **Demo mode** modal).
    - Automatically falls back to an **Interactive Demo Mode** (still running 100% real DCF, Monte Carlo, and Macro Shock math) if no key is configured yet.
 
 ---
@@ -72,9 +78,9 @@ Deterministic Quant Engine     Google Gemini 2.5 Flash (@google/genai)
 
 1. **Hook (20s)**: Retail investors either use spreadsheets that take hours or ask chatbots that hallucinate financial math. **ThesisLens** puts an autonomous 4-agent Gemini Investment Committee on your desk.
 2. **Live Demo — Sudbury Critical Minerals (90s)**:
-   - Click **Run Multi-Agent Investment Committee** on the *Sudbury Critical Minerals & AI Grid* preset.
-   - Expand the **Gemini Function Calls** inside Agent 2 & Agent 3 to show judges real tool arguments (`run_dcf_valuation`, `stress_test_macro_shock`) and zero-hallucination math.
-   - Switch to the **Interactive DCF** tab and drag the **WACC** and **5Y FCF Growth** sliders live to show the valuation sensitivity heatmap update in real time.
+   - Open the **Scenario library**, choose *Sudbury Critical Minerals & AI Grid*, and select **Run analysis**.
+   - In **Ask the committee**, expand the **Calculations** inside Agent 2 & Agent 3 to show judges real tool arguments (`run_dcf_valuation`, `stress_test_macro_shock`) and zero-hallucination math.
+   - Open **Scenario tests** and select the **DCF** tab and drag the **WACC** and **5Y FCF Growth** sliders live to show the valuation sensitivity heatmap update in real time.
    - Switch to **Macro Shock Stress Test** to show how the portfolio behaves in a *+100bps Rate Shock* vs. *Critical Minerals Supercycle*.
 3. **Multimodal & Firebase (40s)**: Upload an earnings chart screenshot so Agent 1 extracts financial signals via Gemini Vision, then click **Save Memo** to persist the structured CIO report.
 4. **Close (30s)**: Built from scratch on Google Gemini 2.5 Flash (`@google/genai`), Next.js, TypeScript, Recharts, and Firebase—ready for retail investors, student investment clubs, and financial advisors.
@@ -85,7 +91,7 @@ Deterministic Quant Engine     Google Gemini 2.5 Flash (@google/genai)
 
 ThesisLens ships with a **dual-transport Model Context Protocol (MCP) server** so *any* AI agent (Antigravity, Claude Desktop, Claude Code, Cursor, Gemini CLI, OpenAI Agents SDK, or custom web agents) can call its deterministic quant engine, compare competing capital options head-to-head, and run adversarial Bull vs. Bear pre-mortems.
 
-- **18 Tools**: `get_company_fundamentals`, `build_company_model`, `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
+- **19 Tools**: `get_company_fundamentals`, `build_company_model`, `run_company_analyst`, `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
 - **3 Decision-Coaching Prompts**: `decision-brief`, `buy-vs-invest`, `probabilistic-bet-sizing`.
 - **3 Read-Only Resources**: `thesislens://markets/real-estate`, `thesislens://tax/residencies`, `thesislens://scenarios/presets`.
 

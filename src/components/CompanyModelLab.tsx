@@ -329,7 +329,7 @@ export function CompanyModelLab({ userApiKey, onSendToCommittee }: CompanyModelL
           <div>
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Company Valuation Model Lab</h2>
+              <h1 className="page-title">Company valuation</h1>
               <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-300">
                 All 19 Sectors · SEC + Specialist Engines
               </span>

@@ -206,7 +206,7 @@ export function LifestyleWorkbench({
       </button>
 
       {/* 1. Client Identity & Horizon */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("identity")}
@@ -317,7 +317,7 @@ export function LifestyleWorkbench({
       </div>
 
       {/* 2. Income & Lifestyle Cash Flow */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("cashflow")}
@@ -431,7 +431,7 @@ export function LifestyleWorkbench({
       </div>
 
       {/* 3. Balance Sheet & Tax Buckets */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("balance")}
@@ -505,7 +505,7 @@ export function LifestyleWorkbench({
       </div>
 
       {/* 4. Demographic-Specific Structural Levers */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("demographic")}
@@ -682,7 +682,7 @@ export function LifestyleWorkbench({
       </div>
 
       {/* 5. Protection & Estate Readiness Flags */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("protection")}
@@ -753,7 +753,7 @@ export function LifestyleWorkbench({
       </div>
 
       {/* 6. Life Milestones Builder */}
-      <div className="rounded-xl border border-slate-800/90 bg-[#0c1322]">
+      <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)]">
         <button
           type="button"
           onClick={() => toggleSection("milestones")}

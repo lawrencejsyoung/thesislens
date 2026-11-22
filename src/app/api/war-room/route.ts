@@ -1,3 +1,4 @@
+import { audienceGuidance } from "@/lib/workspaces";
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import {
@@ -286,6 +287,7 @@ export async function POST(req: NextRequest) {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const roleCfg = ROLE_META[targetRole];
+    const instructions = [roleCfg.systemInstruction, audienceGuidance(payload.analysisRequest.audience)].filter(Boolean).join("\n");
     const toolCalls: ToolCallRecord[] = [];
 
     const historyText = (payload.history ?? [])
@@ -322,7 +324,7 @@ First call 1-2 relevant quantitative tools to verify your math (never guess fina
         model: DEFAULT_MODEL,
         contents,
         config: {
-          systemInstruction: roleCfg.systemInstruction,
+          systemInstruction: instructions,
           tools: [{ functionDeclarations: UNIVERSAL_QUANT_TOOLS }],
           temperature: 0.35,
         },
@@ -389,7 +391,7 @@ First call 1-2 relevant quantitative tools to verify your math (never guess fina
         },
       ],
       config: {
-        systemInstruction: roleCfg.systemInstruction,
+        systemInstruction: instructions,
         responseMimeType: "application/json",
         responseSchema: WAR_ROOM_RESPONSE_SCHEMA,
         temperature: 0.35,

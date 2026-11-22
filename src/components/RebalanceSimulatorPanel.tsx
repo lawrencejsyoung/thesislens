@@ -127,7 +127,7 @@ export function RebalanceSimulatorPanel({
   const VerdictIcon = verdictBadge.icon;
 
   return (
-    <div className="rounded-2xl border border-cyan-500/35 bg-gradient-to-b from-[#0d182b] to-[#09111f] p-5 shadow-2xl">
+    <div className="rounded-2xl border border-cyan-500/35 bg-gradient-to-b from-[var(--raised)] to-[var(--surface)] p-5 shadow-2xl">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800/90 pb-4">
         <div>
@@ -152,6 +152,7 @@ export function RebalanceSimulatorPanel({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            disabled={appliedSuccess}
             onClick={() => onApplyRebalance(simulation.proposedHoldings)}
             className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition ${
               appliedSuccess
@@ -162,12 +163,12 @@ export function RebalanceSimulatorPanel({
             {appliedSuccess ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Applied to Portfolio</span>
+                <span>Applied to draft</span>
               </>
             ) : (
               <>
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Apply CIO Rebalance to Portfolio</span>
+                <span>Apply weights to draft</span>
               </>
             )}
           </button>

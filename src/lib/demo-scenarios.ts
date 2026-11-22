@@ -857,4 +857,22 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       },
     },
   },
+  {
+    id: "first-portfolio",
+    label: "My first portfolio",
+    badge: "Starter",
+    description: "A sample mix of two stocks and a bond fund with monthly contributions.",
+    payload: {
+      title: "My first portfolio",
+      thesisPrompt: "I have $10,000 and can add $200 a month. How might this mix of stocks and bonds grow over ten years, and what could go wrong?",
+      analysisMode: "portfolio", jurisdiction: "US", capital: 10000,
+      monthlyContribution: 200, horizonYears: 10, riskProfile: "balanced",
+      holdings: [
+        { ticker: "MSFT", name: "Microsoft", sector: "Technology", weightPct: 30, currentPrice: 400, beta: 1.1, expectedAnnualReturnPct: 7, annualVolatilityPct: 23 },
+        { ticker: "PG", name: "Procter & Gamble", sector: "Consumer", weightPct: 30, currentPrice: 150, beta: 0.6, expectedAnnualReturnPct: 6, annualVolatilityPct: 16 },
+        { ticker: "BND", name: "Vanguard Total Bond Market ETF", assetClass: "fixed_income", sector: "Fixed Income", weightPct: 40, currentPrice: 72, beta: 0.12, expectedAnnualReturnPct: 3.5, annualVolatilityPct: 6 },
+      ],
+      dcfInputs: { ticker: "MSFT", currentPrice: 400, sharesOutstandingBillions: 7.4, baseFreeCashFlowBillions: 75, revenueGrowthYear1To5Pct: 8, waccPct: 8.5, terminalGrowthPct: 2.5, netDebtBillions: -20 },
+    },
+  },
 ];

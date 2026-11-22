@@ -14,7 +14,7 @@ async function main() {
   });
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[ThesisLens MCP] stdio server ready (16 tools, 3 prompts, 3 resources)");
+  console.error("[ThesisLens MCP] stdio server ready");
 
   const shutdown = async () => {
     try {
