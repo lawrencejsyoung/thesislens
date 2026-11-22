@@ -9,7 +9,7 @@ import { coverageScore, runQualityChecks } from "../src/lib/fundamentals/checks"
 import type { CompanyFundamentals } from "../src/lib/fundamentals/types";
 import type { TemplateId } from "../src/lib/fundamentals/sector";
 import type { SecCompanyFacts } from "../src/lib/fundamentals/sec-types";
-import { buildModelFromFundamentals, ModelInputError, ModelUnsupportedError } from "../src/lib/model";
+import { buildModelFromFundamentals, ModelInputError } from "../src/lib/model";
 import { projectStatements } from "../src/lib/model/engine";
 import { valueCompany } from "../src/lib/model/valuation";
 import type { BaseYear, ModelAssumptions } from "../src/lib/model/types";
@@ -225,11 +225,14 @@ function verifyPointInTimeModel() {
   console.log(`   PASS: base FY2024, year-1 growth ${note.value} from YTD actuals.`);
 }
 
-function verifyUnsupported() {
-  console.log("8. Financials are routed away from the FCFF engine...");
+function verifyFinancialSectorRouting() {
+  console.log("8. Financials route to dedicated equity-side residual-income engine (Phase 6)...");
   const f = fundamentals("JPM", "JPM", "bank");
-  assert.throws(() => buildModelFromFundamentals(f), ModelUnsupportedError);
-  console.log("   PASS");
+  const m = buildModelFromFundamentals(f, { valuationDate: "2026-11-22" });
+  assert.equal(m.sectorValuation?.method, "bank-residual-income");
+  assert(m.valuation.valuePerShare > 0, "JPM residual-income value/share is positive");
+  assert(m.scenarios[0].valuePerShare < m.scenarios[1].valuePerShare && m.scenarios[1].valuePerShare < m.scenarios[2].valuePerShare);
+  console.log(`   PASS: JPM bank-residual-income value/share $${m.valuation.valuePerShare.toFixed(2)} (${m.sectorValuation?.summary}).`);
 }
 
 verifyEngineIdentities();
@@ -238,5 +241,5 @@ verifyValueDriver();
 verifyRevolver();
 verifyAppleModel();
 verifyPointInTimeModel();
-verifyUnsupported();
+verifyFinancialSectorRouting();
 console.log("\nAll model checks passed.");

@@ -5,8 +5,9 @@ sell-side analyst models for the ~500 largest listed companies worldwide. That m
 three-statement models driven by business drivers, anchored to guidance and consensus,
 valued with sector-appropriate methods, and updated after every filing.
 
-**Status (2026-11-22):** Phases 1 and 2 are complete on branch `claude/sleepy-johnson-9ngojn`.
-Phases 3–6 haven't started. All open decisions (D1–D4) are decided; see [Decisions](#decisions).
+**Status (2026-11-22):** Phases 1 and 2 were completed on branch `claude/sleepy-johnson-9ngojn`;
+Phases 3–6 are now implemented and verified offline on branch `feat/valuation-models-phases-3-6`
+(`verify:analyst`, `verify:storage`, `verify:backtest`, `verify:sectors`). All decisions (D1–D4) are reflected.
 
 ---
 

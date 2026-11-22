@@ -16,8 +16,15 @@ import {
   type ScenarioResult,
 } from "./types";
 import { computeWacc, valueCompany } from "./valuation";
+import {
+  buildSpecialistFinancialModel,
+  enhanceOperatingModelForSector,
+  isFinancialSectorTemplate,
+  type PipelineAsset,
+} from "./sectors";
 
 export * from "./types";
+export * from "./sectors";
 export { ModelDataError } from "./baseline";
 export { MARKET_DEFAULTS } from "./baseline";
 
@@ -41,6 +48,8 @@ export interface BuildModelOptions {
   /** Defaults to asOf, else today. */
   valuationDate?: string;
   scenarioProbabilities?: { bear: number; base: number; bull: number };
+  /** Optional clinical pipeline assets for Pharma/Biotech rNPV valuation (Phase 6). */
+  pipelineAssets?: PipelineAsset[];
 }
 
 const DRIVER_BOUNDS: Record<DriverKey, [number, number]> = {
@@ -193,14 +202,23 @@ function scenarioAssumptions(a: ModelAssumptions, sign: -1 | 1, baseWacc: number
 /** Pure model build from already-loaded fundamentals (no network; used by tests). */
 export function buildModelFromFundamentals(f: CompanyFundamentals, opts: BuildModelOptions = {}): CompanyModel {
   const template = templateConfig(f.profile.templateId as Parameters<typeof templateConfig>[0]);
-  if (template.method === "unsupported") {
-    throw new ModelUnsupportedError(`${f.profile.ticker} uses the ${template.id} template, which the FCFF engine does not support. ${template.note ?? ""}`.trim());
-  }
   const years = opts.overrides?.years ?? 10;
   if (!Number.isInteger(years) || years < 3 || years > 20) throw new ModelInputError("years must be an integer between 3 and 20.");
   const currentPrice = opts.currentPrice ?? null;
   if (currentPrice !== null && (!Number.isFinite(currentPrice) || currentPrice <= 0)) {
     throw new ModelInputError("currentPrice must be a positive number.");
+  }
+
+  // Phase 6: Banks, Insurers, and Capital Markets route to dedicated equity-side engines (zero refusals).
+  if (isFinancialSectorTemplate(template.id)) {
+    return buildSpecialistFinancialModel(f, {
+      currentPrice,
+      valuationDate: opts.valuationDate,
+      years,
+      riskFreeRate: opts.overrides?.valuation?.riskFreeRate,
+      equityRiskPremium: opts.overrides?.valuation?.equityRiskPremium,
+      scenarioProbabilities: opts.scenarioProbabilities,
+    });
   }
 
   const baseline = buildBaseline({ history: f.history, template, years });
@@ -325,12 +343,11 @@ export function buildModelFromFundamentals(f: CompanyFundamentals, opts: BuildMo
   }
   for (const c of f.checks.filter((c) => c.status === "fail")) warnings.push(`Data check failed: ${c.id}${c.periodId ? ` (${c.periodId})` : ""}: ${c.message}`);
   if (f.history.currency !== "USD") {
-    warnings.push(`Values are in ${f.history.currency}. Supply currentPrice in ${f.history.currency} per ordinary share (convert ADR prices and ratios first).`);
+    warnings.push(`Values are in ${f.history.currency}. Supply currentPrice in ${f.history.currency} per ordinary share (or use ADR conversion helper).`);
   }
-  if (template.method === "fcff-dcf-indicative") warnings.push(`${template.id}: DCF is indicative only for this sector.`);
 
   const partial = { projections: core.projections, base: baseline.base };
-  return {
+  const operatingModel: CompanyModel = {
     ticker: f.profile.ticker,
     name: f.profile.name,
     templateId: f.profile.templateId as CompanyModel["templateId"],
@@ -354,6 +371,9 @@ export function buildModelFromFundamentals(f: CompanyFundamentals, opts: BuildMo
     checks,
     warnings,
   };
+
+  // Phase 6 specialist overlays for REITs, Utilities, Energy/Materials, Pharma/Biotech, and Autos
+  return enhanceOperatingModelForSector(operatingModel, f, { pipelineAssets: opts.pipelineAssets });
 }
 
 /** Fetch SEC fundamentals and build the model. */

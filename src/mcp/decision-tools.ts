@@ -25,6 +25,7 @@ import {
 import { searchPredictionMarkets } from "../lib/adapters/market-data";
 import { getCompanyFundamentals } from "../lib/fundamentals";
 import { buildCompanyModel } from "../lib/model";
+import { runCompanyAnalyst } from "../lib/analyst";
 import {
   companyModelRequestSchema,
   presentModel,
@@ -727,6 +728,51 @@ export async function handleBuildCompanyModel(
   return {
     summary: summarizeModel(model),
     data: presentModel(model, args.detail) as unknown as Record<string, unknown>,
+  };
+}
+
+export const companyAnalystInputSchema = {
+  ticker: fundamentalsRequestSchema.ticker,
+  asOf: fundamentalsRequestSchema.asOf,
+  currentPrice: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Optional share price in the reporting currency."),
+  years: z.number().int().min(3).max(20).optional().describe("Forecast horizon in years (default 10)."),
+  detail: z.enum(["summary", "full"]).optional().describe("'summary' (default) or 'full' statements."),
+};
+
+export async function handleRunCompanyAnalyst(
+  args: z.infer<z.ZodObject<typeof companyAnalystInputSchema>>,
+  geminiApiKey?: string
+): Promise<DecisionToolOutput> {
+  const result = await runCompanyAnalyst(args.ticker, {
+    asOf: args.asOf ?? null,
+    currentPrice: args.currentPrice ?? null,
+    years: args.years,
+    apiKey: geminiApiKey,
+  });
+  return {
+    summary: `${summarizeModel(result.model)} Analyst (${result.provider}/${result.modelName}, ${result.citations.length} cited overrides, baseline ${result.model.currency} ${result.baselineValuePerShare.toFixed(2)}): ${result.thesisSummary}`,
+    data: {
+      ...presentModel(result.model, args.detail),
+      analyst: {
+        thesisSummary: result.thesisSummary,
+        baselineValuePerShare: Number(result.baselineValuePerShare.toFixed(2)),
+        rates: result.rates,
+        citations: result.citations,
+        validation: {
+          valid: result.validation.valid,
+          errors: result.validation.errors,
+          warnings: result.validation.warnings,
+        },
+        keyRisks: result.keyRisks,
+        catalysts: result.catalysts,
+        turns: result.turns,
+        usage: result.usage,
+      },
+    } as unknown as Record<string, unknown>,
   };
 }
 

@@ -65,6 +65,15 @@ export const companyModelRequestSchema = {
     .enum(["summary", "full"])
     .optional()
     .describe("'summary' (default) returns key outputs; 'full' adds every projected statement line."),
+  analyst: z
+    .boolean()
+    .optional()
+    .describe("When true, runs the Phase 3 AI analyst loop (FRED/Damodaran rates, dossier, cited overrides, validation)."),
+  apiKey: z
+    .string()
+    .max(200)
+    .optional()
+    .describe("Optional Gemini API key override when analyst=true."),
 };
 
 export const companyModelRequestObject = z.object(companyModelRequestSchema);
@@ -134,6 +143,7 @@ export function presentModel(m: CompanyModel, detail: "summary" | "full" = "summ
     assumptions: m.notes,
     checks: m.checks,
     warnings: m.warnings,
+    ...(m.sectorValuation ? { sectorValuation: m.sectorValuation } : {}),
     ...(detail === "full" ? { statements: m.projections, drivers: m.assumptions } : {}),
   };
 }
