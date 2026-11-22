@@ -716,7 +716,7 @@ export function GlobalTaxModule({
                         fontSize: "11px",
                         borderRadius: "8px",
                       }}
-                      formatter={(val: number) => [fmtUsd(val), "Projected Wealth"]}
+                      formatter={(val) => [fmtUsd(Number(val)), "Projected Wealth"]}
                     />
                     <Bar dataKey="wealth" radius={[6, 6, 0, 0]}>
                       {accountChartData.map((entry, idx) => (
@@ -900,8 +900,8 @@ export function GlobalTaxModule({
                       fontSize: "11px",
                       borderRadius: "8px",
                     }}
-                    formatter={(val: number, name: string) => [
-                      fmtUsd(val),
+                    formatter={(val, name) => [
+                      fmtUsd(Number(val)),
                       name === "netSpendable" ? "Net Spendable Cash" : "Tax / WHT / Borrow Drag",
                     ]}
                   />
@@ -1098,7 +1098,7 @@ export function GlobalTaxModule({
                       fontSize: "11px",
                       borderRadius: "8px",
                     }}
-                    formatter={(val: number) => fmtUsd(val)}
+                    formatter={(val) => fmtUsd(Number(val))}
                   />
                   <Legend wrapperStyle={{ fontSize: "11px" }} />
                   <Bar dataKey="retained" name="Retained for Reinvestment" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -1467,7 +1467,7 @@ export function GlobalTaxModule({
                         fontSize: "11px",
                         borderRadius: "8px",
                       }}
-                      formatter={(val: number) => [`${val}%`, "Rate"]}
+                      formatter={(val) => [`${val}%`, "Rate"]}
                     />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                       {reChartData.map((entry, idx) => (

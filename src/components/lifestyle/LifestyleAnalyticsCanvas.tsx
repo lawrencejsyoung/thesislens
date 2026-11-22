@@ -353,7 +353,7 @@ export function LifestyleAnalyticsCanvas({
                       fontSize: "12px",
                     }}
                     labelFormatter={(age) => `Age ${age}`}
-                    formatter={(val: number, name: string) => [fmtExact(val), name]}
+                    formatter={(val, name) => [fmtExact(Number(val)), String(name)]}
                   />
                   <ReferenceLine
                     x={inputs.retirementAge}
@@ -441,7 +441,7 @@ export function LifestyleAnalyticsCanvas({
                       fontSize: "12px",
                     }}
                     labelFormatter={(age) => `Age ${age}`}
-                    formatter={(val: number, name: string) => [fmtExact(val), name]}
+                    formatter={(val, name) => [fmtExact(Number(val)), String(name)]}
                   />
                   <Legend wrapperStyle={{ fontSize: "11px" }} />
                   <ReferenceLine x={inputs.retirementAge} stroke="#f59e0b" strokeDasharray="3 3" />
@@ -507,7 +507,7 @@ export function LifestyleAnalyticsCanvas({
                         borderRadius: "10px",
                         fontSize: "12px",
                       }}
-                      formatter={(val: number) => [fmtExact(val), "Annual Amount"]}
+                      formatter={(val) => [fmtExact(Number(val)), "Annual Amount"]}
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                       {cashFlowItems.map((entry) => (
@@ -921,7 +921,7 @@ export function LifestyleAnalyticsCanvas({
                       borderRadius: "10px",
                       fontSize: "12px",
                     }}
-                    formatter={(val: number) => [`${val}%`, "Success Rate"]}
+                    formatter={(val) => [`${val}%`, "Success Rate"]}
                   />
                   <ReferenceLine y={85} stroke="#10b981" strokeDasharray="3 3" />
                   <Bar dataKey="successRatePct" radius={[5, 5, 0, 0]}>
