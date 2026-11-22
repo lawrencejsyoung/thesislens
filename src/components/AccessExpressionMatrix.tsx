@@ -158,11 +158,11 @@ export function AccessExpressionMatrix({
                 <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0 text-rose-400" />
                 <span>{v.keyRisk}</span>
               </div>
-              {v.accessUrl && (
+              {v.accessUrl && /^https?:\/\//i.test(v.accessUrl.trim()) && (
                 <a
-                  href={v.accessUrl}
+                  href={v.accessUrl.trim()}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-400 hover:text-cyan-300"
                 >
                   Inspect Venue <ExternalLink className="h-2.5 w-2.5" />

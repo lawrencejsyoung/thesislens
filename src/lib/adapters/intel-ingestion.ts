@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { IntelSignal, IntelSourceType } from "../types";
+import { safeFetchPublicText } from "../security/ssrf";
+import { sanitizeHttpUrl } from "../security/validation";
 
 const KNOWN_TICKERS = [
   "VALE",
@@ -289,9 +291,10 @@ export function parseRssOrPodcastXml(
       extractTag(raw, "itunes:summary") ||
       extractTag(raw, "content:encoded");
     const linkMatch = raw.match(/<link[^>]*href=["']([^"']+)["']/i);
-    const link = extractTag(raw, "link") || (linkMatch ? linkMatch[1] : undefined);
+    const rawLink = extractTag(raw, "link") || (linkMatch ? linkMatch[1] : undefined);
+    const link = sanitizeHttpUrl(rawLink);
     const enclosureMatch = raw.match(/<enclosure[^>]*url=["']([^"']+)["']/i);
-    const audioUrl = enclosureMatch ? enclosureMatch[1] : undefined;
+    const audioUrl = sanitizeHttpUrl(enclosureMatch ? enclosureMatch[1] : undefined);
     const duration = extractTag(raw, "itunes:duration") || undefined;
     const pubRaw = extractTag(raw, "pubDate") || extractTag(raw, "updated") || "";
     let publishedAt = new Date().toISOString().slice(0, 10);
@@ -431,9 +434,12 @@ export async function ingestCustomIntelligence(params: {
   feedUrl?: string;
   apiKey?: string;
 }): Promise<{ signals: IntelSignal[]; extractionMode: "gemini" | "deterministic" | "rss" }> {
-  // 1. Live RSS / Podcast feed ingestion
-  if (params.feedUrl && params.feedUrl.trim().startsWith("http")) {
-    const xml = await fetchTextWithTimeout(params.feedUrl.trim(), 4500);
+  // 1. Live RSS / Podcast feed ingestion (SSRF-validated + byte-capped)
+  if (params.feedUrl && params.feedUrl.trim()) {
+    const xml = await safeFetchPublicText(params.feedUrl.trim(), {
+      timeoutMs: 4500,
+      maxBytes: 1_500_000,
+    });
     if (xml) {
       const parsed = parseRssOrPodcastXml(
         xml,

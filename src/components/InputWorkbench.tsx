@@ -262,6 +262,20 @@ export function InputWorkbench({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const allowedTypes = new Set([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "application/pdf",
+    ]);
+    if (!allowedTypes.has(file.type)) {
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : "";
@@ -269,7 +283,7 @@ export function InputWorkbench({
       onChange({
         ...payload,
         attachmentBase64: base64,
-        attachmentMimeType: file.type || "image/png",
+        attachmentMimeType: file.type,
         attachmentName: file.name,
       });
     };

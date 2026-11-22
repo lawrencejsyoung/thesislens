@@ -7,6 +7,11 @@ import {
   LifestylePlanInputs,
   LifestylePlanResult,
 } from "@/lib/lifestyle-types";
+import {
+  extractSafeGeminiApiKey,
+  logServerError,
+  readJsonBodyWithLimit,
+} from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,13 +129,19 @@ function buildDeterministicAdvisorBrief(
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as {
-      inputs: LifestylePlanInputs;
-      generateBrief?: boolean;
-    };
+  const parsed = await readJsonBodyWithLimit<{
+    inputs: LifestylePlanInputs;
+    generateBrief?: boolean;
+  }>(req, 256_000);
 
-    if (!body?.inputs) {
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+
+  try {
+    const body = parsed.data;
+
+    if (!body?.inputs || typeof body.inputs !== "object") {
       return NextResponse.json(
         { error: "Missing lifestyle plan inputs" },
         { status: 400 }
@@ -143,7 +154,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ plan });
     }
 
-    const headerKey = req.headers.get("x-gemini-api-key")?.trim();
+    const headerKey = extractSafeGeminiApiKey(req);
     const apiKey = headerKey || process.env.GEMINI_API_KEY?.trim();
 
     if (!apiKey) {
@@ -249,12 +260,10 @@ Deliver concrete, jurisdiction-accurate (${body.inputs.jurisdiction}) wealth man
       brief: buildDeterministicAdvisorBrief(plan),
     });
   } catch (err) {
+    logServerError("api/lifestyle:POST", err);
     return NextResponse.json(
       {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Lifestyle planning calculation failed",
+        error: "Lifestyle planning calculation failed.",
       },
       { status: 500 }
     );
