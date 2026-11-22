@@ -124,7 +124,7 @@ jobs:
             --max-instances=10
             --timeout=120
             --ingress=all
-            --set-env-vars=NODE_ENV=production,GEMINI_MODEL=${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }},ALLOW_CLIENT_API_KEY_OVERRIDE=${{ vars.ALLOW_CLIENT_API_KEY_OVERRIDE || 'true' }}
+            --set-env-vars=NODE_ENV=production,GEMINI_MODEL=${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }},ALLOW_CLIENT_API_KEY_OVERRIDE=${{ vars.ALLOW_CLIENT_API_KEY_OVERRIDE || 'true' }},SEC_CACHE_DIR=/tmp/sec,SEC_USER_AGENT=${{ vars.SEC_USER_AGENT }}
             --set-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest,MCP_API_KEY=MCP_API_KEY:latest
 
       - name: Post-deploy health check smoke test
