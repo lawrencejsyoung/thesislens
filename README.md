@@ -123,6 +123,8 @@ POST http://localhost:3000/api/mcp
 
 ## Company Fundamentals (SEC EDGAR)
 
+> Roadmap, open decisions and known limitations: [`docs/VALUATION_MODELS_PLAN.md`](docs/VALUATION_MODELS_PLAN.md).
+
 ThesisLens builds a normalized financial history for any SEC-reporting company directly from
 XBRL filings: no API key and no paid data feed. It covers US 10-K/10-Q filers and foreign
 20-F/40-F filers (IFRS, in the reporting currency).
