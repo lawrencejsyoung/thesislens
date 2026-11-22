@@ -23,6 +23,12 @@ import {
   summarizeResidentialVsCommercial,
 } from "../lib/quant-engine";
 import { searchPredictionMarkets } from "../lib/adapters/market-data";
+import { getCompanyFundamentals } from "../lib/fundamentals";
+import {
+  fundamentalsRequestSchema,
+  presentFundamentals,
+  summarizeFundamentals,
+} from "../lib/fundamentals/present";
 import {
   CURATED_INTEL_SIGNALS,
   fetchIntelligenceCorpus,
@@ -691,6 +697,19 @@ export function handleGlobalTaxAudit(
 }
 
 // ── 13. Search Live Prediction Markets ──
+
+export const companyFundamentalsInputSchema = fundamentalsRequestSchema;
+
+export async function handleCompanyFundamentals(
+  args: z.infer<z.ZodObject<typeof companyFundamentalsInputSchema>>
+): Promise<DecisionToolOutput> {
+  const { ticker, asOf, ...view } = args;
+  const fundamentals = await getCompanyFundamentals(ticker, { asOf });
+  return {
+    summary: summarizeFundamentals(fundamentals),
+    data: presentFundamentals(fundamentals, view) as unknown as Record<string, unknown>,
+  };
+}
 
 export const searchMarketsInputSchema = {
   query: z.string().min(1).describe("Topic or event keywords to search live prediction markets (e.g. 'Fed rate cut', 'AI', 'copper', 'Canada')."),

@@ -85,7 +85,7 @@ Deterministic Quant Engine     Google Gemini 2.5 Flash (@google/genai)
 
 ThesisLens ships with a **dual-transport Model Context Protocol (MCP) server** so *any* AI agent (Antigravity, Claude Desktop, Claude Code, Cursor, Gemini CLI, OpenAI Agents SDK, or custom web agents) can call its deterministic quant engine, compare competing capital options head-to-head, and run adversarial Bull vs. Bear pre-mortems.
 
-- **16 Tools**: `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
+- **17 Tools**: `get_company_fundamentals`, `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
 - **3 Decision-Coaching Prompts**: `decision-brief`, `buy-vs-invest`, `probabilistic-bet-sizing`.
 - **3 Read-Only Resources**: `thesislens://markets/real-estate`, `thesislens://tax/residencies`, `thesislens://scenarios/presets`.
 
@@ -108,7 +108,7 @@ Add this to your MCP client config (e.g. `claude_desktop_config.json`, `.cursor/
 }
 ```
 
-> All 16 tools (including `run_adversarial_committee`) work **100% deterministically with zero API key**. Providing `GEMINI_API_KEY` automatically upgrades `run_adversarial_committee` to live Gemini multi-agent debate.
+> All tools except `get_company_fundamentals` (which reads SEC EDGAR) work **100% deterministically with zero API key**. Providing `GEMINI_API_KEY` automatically upgrades `run_adversarial_committee` to live Gemini multi-agent debate.
 
 ### Option B: Remote Streamable HTTP MCP Endpoint (`/api/mcp`)
 
@@ -121,9 +121,39 @@ POST http://localhost:3000/api/mcp
 - Optional auth: set `MCP_API_KEY` in `.env.local` to require `Authorization: Bearer <MCP_API_KEY>`.
 - Optional per-request Gemini upgrade: pass `x-gemini-api-key: <key>`.
 
+## Company Fundamentals (SEC EDGAR)
+
+ThesisLens builds a normalized financial history for any SEC-reporting company directly from
+XBRL filings: no API key and no paid data feed. It covers US 10-K/10-Q filers and foreign
+20-F/40-F filers (IFRS, in the reporting currency).
+
+```text
+GET /api/fundamentals?ticker=AAPL[&asOf=2024-06-30][&annualPeriods=5][&quarterlyPeriods=8][&includeSources=1]
+```
+
+- **About 50 canonical line items** across the income statement, balance sheet, cash flow and bank-specific lines. Each has ordered fallback XBRL tags, so tag changes over time (e.g. ASC 606) don't break a series.
+- **Discrete quarters.** 10-Qs report cash flows year-to-date, and Q4 is never filed, so ThesisLens derives Q2 = H1 − Q1 and Q4 = FY − 9M.
+- **Point-in-time.** `asOf` hides every filing made after that date, including later restatements, so backtests can't see the future.
+- **Provenance.** With `includeSources=1`, every value carries its XBRL tag, filing accession number, form, filing date and how it was derived.
+- **Quality checks.** Balance-sheet identity (including mezzanine equity), quarters summing to the year, gross-profit tie-out, core coverage and freshness.
+- **Sector templates.** Each company maps to one of 19 valuation templates from its SIC code plus curated overrides (`src/lib/fundamentals/sector.ts`).
+- **Holding-company reorganizations.** History from a predecessor registrant is merged in (e.g. ExxonMobil, 2026).
+
+Set `SEC_USER_AGENT` (the SEC requires an app name plus contact email). Responses are cached
+under `SEC_CACHE_DIR` (default `.cache/sec`).
+
+```bash
+npm run verify:fundamentals                   # offline tests on real trimmed SEC fixtures (CI)
+npm run audit:fundamentals                    # live audit of the ~280-company universe
+npm run audit:fundamentals -- AAPL XOM --as-of 2024-06-30
+```
+
+If you run behind an HTTPS proxy, Node's built-in `fetch` only uses it with `NODE_USE_ENV_PROXY=1` (Node ≥ 22.21).
+
 ### Verification Scripts
 
 ```bash
 npm run verify:quant   # Core quantitative engine invariants
 npm run verify:mcp     # In-memory + real stdio MCP integration tests
+npm run verify:fundamentals  # SEC XBRL normalization on real filing fixtures
 ```

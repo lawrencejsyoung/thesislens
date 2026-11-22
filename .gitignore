@@ -11,3 +11,6 @@ tsconfig.tsbuildinfo
 *.pem
 *.key
 service-account*.json
+
+# SEC EDGAR response cache and audit reports
+.cache/
