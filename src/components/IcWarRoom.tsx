@@ -131,7 +131,7 @@ export function IcWarRoom({
   const topTicker =
     analysisRequest.dcfInputs.ticker || analysisRequest.holdings[0]?.ticker || "NVDA";
 
-  const smartChips: { label: string; role: WarRoomTargetRole; prompt: string }[] = [
+  const advancedChips: { label: string; role: WarRoomTargetRole; prompt: string }[] = [
     {
       label: `Break ${topTicker}: +150bps WACC DCF`,
       role: "bear",
@@ -167,6 +167,11 @@ export function IcWarRoom({
       : []),
   ];
 
+  const smartChips = analysisRequest.audience === "beginner" ? [
+    { label: "What could go wrong?", role: "bear" as const, prompt: "Explain the biggest modeled loss in dollars and what could cause it." },
+    { label: "Why change the mix?", role: "cio" as const, prompt: "Explain the proposed allocation and one trade-off in everyday language." },
+  ] : advancedChips;
+
   const sendQuestion = async (
     questionText: string,
     overrideRole?: WarRoomTargetRole
@@ -180,7 +185,7 @@ export function IcWarRoom({
       id: `wr-user-${Date.now()}`,
       sender: "user",
       targetRole: roleToUse,
-      speakerLabel: "You (Portfolio Manager)",
+      speakerLabel: "You",
       content: trimmed,
       timestamp: new Date().toLocaleTimeString("en-US", {
         hour: "2-digit",
@@ -246,31 +251,27 @@ export function IcWarRoom({
     setExpandedTools((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-gradient-to-b from-[#0f172a] to-[#09101d] p-5 shadow-2xl">
+    <div className="rounded-2xl border border-slate-800/90 bg-[var(--surface)] p-5 shadow-2xl">
       {/* Header + Live Conviction Tracker */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1 rounded-full border border-violet-500/35 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-200">
-              <Swords className="h-3 w-3" /> Interactive IC War Room
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-400">
-              Live Quant Function Calling
+              <Swords className="h-3 w-3" /> Committee follow-up
             </span>
           </div>
           <h3 className="mt-1.5 text-base font-bold text-white">
-            Cross-Examine the Investment Committee
+            Ask the committee
           </h3>
           <p className="mt-0.5 text-xs text-slate-400">
-            Challenge any specialist on valuation, macro tail risks, or after-tax drag.
-            Agents re-run deterministic quant tools before answering.
+            Choose a specialist or start with a suggested question about this analysis.
           </p>
         </div>
 
         {/* Live Conviction Score Delta Pill */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3.5 py-2 text-right">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Live War Room Conviction
+            Current conviction
           </div>
           <div className="mt-0.5 flex items-baseline justify-end gap-1.5">
             <span className="font-mono text-xs text-slate-500">
@@ -524,7 +525,8 @@ export function IcWarRoom({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={`Cross-examine ${
+          aria-label="Question for the committee"
+          placeholder={`Ask ${
             TARGET_ROLES.find((r) => r.id === targetRole)?.label
           } (e.g. "What if WACC rises +150bps?")`}
           className="flex-1 rounded-xl border border-slate-700/90 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"

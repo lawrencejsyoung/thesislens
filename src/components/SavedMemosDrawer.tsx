@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useEffect, useRef } from "react";
 import { X, Clock, Database, HardDrive } from "lucide-react";
 import { CompleteAnalysisResult } from "@/lib/types";
 
@@ -19,14 +19,18 @@ export function SavedMemosDrawer({
   source,
   onSelect,
 }: SavedMemosDrawerProps) {
-  if (!open) return null;
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (open) dialog.current?.showModal();
+    else dialog.current?.close();
+  }, [open]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-[#0c1322] shadow-2xl">
+    <dialog ref={dialog} aria-labelledby="saved-memos-title" className="memo-dialog" onCancel={onClose}>
+      <div className="flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-[var(--surface)] shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-white">Saved Investment Memos</h2>
+            <h2 id="saved-memos-title" className="text-lg font-semibold">Saved memos</h2>
             <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
               {source === "firestore" ? (
                 <>
@@ -34,14 +38,14 @@ export function SavedMemosDrawer({
                 </>
               ) : (
                 <>
-                  <HardDrive className="h-3 w-3 text-cyan-400" /> Local Browser Storage (Add Firebase env vars to sync)
+                  <HardDrive className="h-3 w-3 text-cyan-400" /> Saved in this browser
                 </>
               )}
             </p>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            aria-label="Close saved memos" onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             <X className="h-4 w-4" />
@@ -88,6 +92,6 @@ export function SavedMemosDrawer({
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

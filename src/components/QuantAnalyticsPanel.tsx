@@ -311,7 +311,7 @@ export function QuantAnalyticsPanel({
       </div>
 
       {/* Main Chart Card with Adaptive Tabs */}
-      <div className="rounded-2xl border border-slate-800/90 bg-[#0d1424] p-4 shadow-xl">
+      <div className="rounded-2xl border border-slate-800/90 bg-[var(--surface)] p-4 shadow-xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {hasHedgeFund && (
@@ -1264,7 +1264,7 @@ function KpiCard({
   }[tone];
 
   return (
-    <div className="rounded-xl border border-slate-800/90 bg-[#0d1424] p-3">
+    <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
         {label}
       </div>

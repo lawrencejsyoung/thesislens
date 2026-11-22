@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { WorkspaceOverview } from "@/components/WorkspaceOverview";
+import { AgentConnections } from "@/components/AgentConnections";
+import { HouseholdPlanner } from "@/components/lifestyle/HouseholdPlanner";
+import { Profile, profiles, isProfile, Workspace, workspaceLabels } from "@/lib/workspaces";
 import { Header } from "@/components/Header";
 import { InputWorkbench } from "@/components/InputWorkbench";
 import { AgentDebateFeed } from "@/components/AgentDebateFeed";
@@ -50,12 +55,43 @@ import {
 
 type CanvasTab = "executive" | "war_room" | "quant_labs" | "intel_access";
 
+const starter = PRESET_SCENARIOS.find(s => s.id === profiles.beginner.preset)!;
+
 export default function HomePage() {
+  const pathname = usePathname();
+  const defaultWorkspace = pathname === "/lifestyle" ? "planner" : "overview";
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(defaultWorkspace);
+  const [visitedPlanner, setVisitedPlanner] = useState(defaultWorkspace === "planner");
+  const [profile, setProfile] = useState<Profile>("beginner");
+  const [analyzedPayload, setAnalyzedPayload] = useState<AnalysisRequestPayload | null>(null);
+  const resultVersion = useRef(0);
+  const activeVersion = resultVersion.current;
+  const currentRun = useRef<AbortController | null>(null);
+  const experienceTier: ExperienceTier = profile === "manager" ? "institutional" : "prosumer";
+  const navigate = (workspace: Workspace) => {
+    setActiveWorkspace(workspace);
+    if (workspace === "planner") setVisitedPlanner(true);
+    if (window.location.hash !== "#" + workspace) window.location.hash = workspace;
+    window.scrollTo(0, 0);
+  };
+  useEffect(() => {
+    const syncLocation = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash === "main-content") return;
+      const key = Object.hasOwn(workspaceLabels, hash) ? hash as Workspace : defaultWorkspace;
+      setActiveWorkspace(key);
+      if (key === "planner") setVisitedPlanner(true);
+    };
+    syncLocation();
+    window.addEventListener("hashchange", syncLocation);
+    return () => window.removeEventListener("hashchange", syncLocation);
+  }, [defaultWorkspace]);
+  useEffect(() => () => currentRun.current?.abort(), []);
   const [activePresetId, setActivePresetId] = useState<string | null>(
-    PRESET_SCENARIOS[0].id
+    starter.id
   );
   const [payload, setPayload] = useState<AnalysisRequestPayload>(
-    PRESET_SCENARIOS[0].payload
+    starter.payload
   );
 
   const [hasServerKey, setHasServerKey] = useState(false);
@@ -65,7 +101,6 @@ export default function HomePage() {
   );
   const [modelUsed, setModelUsed] = useState("gemini-2.5-flash");
 
-  const [experienceTier, setExperienceTier] = useState<ExperienceTier>("prosumer");
   const [activeCanvasTab, setActiveCanvasTab] = useState<CanvasTab>("executive");
 
   const [isRunning, setIsRunning] = useState(false);
@@ -89,7 +124,7 @@ export default function HomePage() {
   const [rebalanceSimOpen, setRebalanceSimOpen] = useState(false);
   const [rebalanceApplied, setRebalanceApplied] = useState(false);
   const [rebalanceOptions, setRebalanceOptions] = useState<RebalanceSimulationOptions>({
-    residencyId: defaultResidencyForJurisdiction(PRESET_SCENARIOS[0].payload.jurisdiction),
+    residencyId: defaultResidencyForJurisdiction(starter.payload.jurisdiction),
     accountWrapper: "taxable",
     assumedUnrealizedGainPct: 25,
   });
@@ -98,9 +133,6 @@ export default function HomePage() {
   const [warRoomMessages, setWarRoomMessages] = useState<WarRoomMessage[]>([]);
 
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
-  const [activeWorkspace, setActiveWorkspace] = useState<
-    "committee" | "global_tax" | "company_model"
-  >("committee");
   const [savedMemos, setSavedMemos] = useState<CompleteAnalysisResult[]>([]);
   const [savedSource, setSavedSource] = useState<"firestore" | "local">("local");
   const [saveStatus, setSaveStatus] = useState<
@@ -110,10 +142,13 @@ export default function HomePage() {
   // Load saved experience tier + health + memos on mount
   useEffect(() => {
     try {
-      const storedTier = window.localStorage.getItem("thesislens_experience_tier");
-      if (storedTier === "prosumer" || storedTier === "institutional") {
-        setExperienceTier(storedTier);
-      }
+      const stored = window.localStorage.getItem("thesislens_profile");
+      const legacy = window.localStorage.getItem("thesislens_experience_tier");
+      const restored = isProfile(stored) ? stored : legacy === "institutional" ? "manager" : legacy === "prosumer" ? "retail" : "beginner";
+      setProfile(restored);
+      const initial = PRESET_SCENARIOS.find(s => s.id === profiles[restored].preset)!;
+      setPayload(initial.payload);
+      setActivePresetId(initial.id);
     } catch {
       // ignore storage errors
     }
@@ -132,56 +167,52 @@ export default function HomePage() {
     });
   }, []);
 
-  const handleChangeExperienceTier = (tier: ExperienceTier) => {
-    setExperienceTier(tier);
-    try {
-      window.localStorage.setItem("thesislens_experience_tier", tier);
-    } catch {
-      // ignore
-    }
+  const changeProfile = (next: Profile) => {
+    setProfile(next);
+    try { window.localStorage.setItem("thesislens_profile", next); } catch { /* Storage is optional. */ }
+    navigate("overview");
   };
 
   // Keep rebalance default residency synced when scenario jurisdiction changes
   useEffect(() => {
     setRebalanceOptions((prev) => ({
       ...prev,
-      residencyId: defaultResidencyForJurisdiction(payload.jurisdiction),
+      residencyId: defaultResidencyForJurisdiction(analyzedPayload?.jurisdiction ?? payload.jurisdiction),
     }));
-  }, [payload.jurisdiction]);
+  }, [analyzedPayload?.jurisdiction, payload.jurisdiction]);
 
+  const resultInputs = analyzedPayload ?? payload;
   const rebalanceSimulation = useMemo(() => {
-    if (!cioMemo || cioMemo.rebalancePlan.length === 0) return null;
-    return simulateCioRebalance({
-      holdings: payload.holdings,
-      rebalancePlan: cioMemo.rebalancePlan,
-      capital: payload.capital,
-      monthlyContribution: payload.monthlyContribution,
-      horizonYears: payload.horizonYears,
-      options: rebalanceOptions,
-    });
-  }, [
-    cioMemo,
-    payload.holdings,
-    payload.capital,
-    payload.monthlyContribution,
-    payload.horizonYears,
-    rebalanceOptions,
-  ]);
+    if (!cioMemo || !cioMemo.rebalancePlan.length) return null;
+    return simulateCioRebalance({ ...resultInputs, rebalancePlan: cioMemo.rebalancePlan, options: rebalanceOptions });
+  }, [cioMemo, resultInputs, rebalanceOptions]);
 
   const handleSelectPreset = (id: string) => {
     const found = PRESET_SCENARIOS.find((p) => p.id === id);
     if (!found) return;
     setActivePresetId(id);
+    setCustomIntelSignals([]);
     setPayload(found.payload);
     setRebalanceApplied(false);
   };
 
   const runAnalysis = async (customPayload?: AnalysisRequestPayload) => {
     const basePayload = customPayload ?? payload;
-    const reqPayload: AnalysisRequestPayload =
-      customIntelSignals.length > 0
-        ? { ...basePayload, intelSignals: customIntelSignals }
-        : basePayload;
+    const reqPayload: AnalysisRequestPayload = {
+      ...basePayload, audience: profile,
+      intelSignals: customIntelSignals.length ? customIntelSignals : basePayload.intelSignals,
+    };
+    resultVersion.current++;
+    currentRun.current?.abort();
+    const controller = new AbortController();
+    currentRun.current = controller;
+    setAnalyzedPayload(basePayload);
+    setPortfolioMetrics(null);
+    setDcfResult(null);
+    setMonteCarlo(null);
+    setMacroShocks(null);
+    setUniversalQuant(null);
+    setIntelSignals([]);
     setIsRunning(true);
     setErrorMessage(null);
     setRoutingPlan(null);
@@ -193,7 +224,7 @@ export default function HomePage() {
     setRebalanceSimOpen(false);
     setRebalanceApplied(false);
     setWarRoomMessages([]);
-    setStatusMessage("Initializing Universal Quant Suite & Specialist Workforce...");
+    setStatusMessage("Preparing the analysis…");
 
     try {
       const headers: Record<string, string> = {
@@ -207,6 +238,7 @@ export default function HomePage() {
         method: "POST",
         headers,
         body: JSON.stringify(reqPayload),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -217,8 +249,10 @@ export default function HomePage() {
       const decoder = new TextDecoder();
       let buffer = "";
 
+      let terminalEvent = false;
       while (true) {
         const { done, value } = await reader.read();
+        if (controller.signal.aborted) return;
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
@@ -254,25 +288,26 @@ export default function HomePage() {
           } else if (event.type === "cio_memo") {
             setCioMemo(event.memo);
           } else if (event.type === "complete") {
+            terminalEvent = true;
             setCompleteResult(event.result);
+            setActiveMode(event.result.mode);
+            setModelUsed(event.result.modelUsed);
           } else if (event.type === "error") {
+            terminalEvent = true;
             setErrorMessage(event.message);
           }
         }
       }
+      if (!terminalEvent) throw new Error("The analysis was interrupted. Run it again to finish.");
     } catch (err) {
+      if (controller.signal.aborted) return;
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to run Universal Workforce."
       );
     } finally {
-      setIsRunning(false);
+      if (currentRun.current === controller) setIsRunning(false);
     }
   };
-
-  useEffect(() => {
-    runAnalysis(PRESET_SCENARIOS[0].payload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleApplyRebalance = (proposedHoldings: Holding[]) => {
     setPayload((prev) => ({
@@ -286,14 +321,32 @@ export default function HomePage() {
   const handleSaveMemo = async () => {
     if (!completeResult) return;
     setSaveStatus("saving");
-    const dest = await saveMemo(completeResult);
-    setSaveStatus(dest === "firestore" ? "saved-firestore" : "saved-local");
+    const version = resultVersion.current;
+    try {
+      const dest = await saveMemo(completeResult);
+      if (version === resultVersion.current) setSaveStatus(dest === "firestore" ? "saved-firestore" : "saved-local");
+    } catch {
+      if (version === resultVersion.current) {
+        setSaveStatus("idle");
+        setErrorMessage("The memo could not be saved. Check available browser storage and try again.");
+      }
+      return;
+    }
     const { memos, source } = await listSavedMemos();
     setSavedMemos(memos);
     setSavedSource(source);
   };
 
   const handleLoadSaved = (memo: CompleteAnalysisResult) => {
+    resultVersion.current++;
+    currentRun.current?.abort();
+    currentRun.current = null;
+    setIsRunning(false);
+    setStatusMessage("");
+    setErrorMessage(null);
+    setAnalyzedPayload(memo.request);
+    setCustomIntelSignals([]);
+    navigate("committee");
     setPayload(memo.request);
     setActivePresetId(null);
     setActiveMode(memo.mode);
@@ -324,62 +377,49 @@ export default function HomePage() {
   }[] = [
     {
       id: "executive",
-      label: "Executive & Rebalance",
+      label: "Decision memo",
       icon: Award,
       badge: cioMemo ? `${cioMemo.convictionScore}` : undefined,
     },
     {
       id: "war_room",
-      label: "IC War Room",
+      label: "Ask the committee",
       icon: Swords,
       badge: warRoomMessages.length > 0 ? warRoomMessages.length : debateTurns.length || undefined,
     },
     {
       id: "quant_labs",
-      label: "Quant Labs",
+      label: "Scenario tests",
       icon: BarChart3,
     },
     {
       id: "intel_access",
-      label: experienceTier === "institutional" ? "Intel & Access Matrix" : "Intel Signals",
+      label: "Evidence & access",
       icon: Radio,
       badge: intelSignals.length > 0 ? intelSignals.length : undefined,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#070b14]">
-      <Header
-        hasServerKey={hasServerKey}
-        userApiKey={userApiKey}
-        onSaveApiKey={(key) => {
-          setUserApiKey(key);
-          if (key) setActiveMode("live-gemini");
-        }}
-        activeMode={activeMode}
-        savedCount={savedMemos.length}
-        onOpenSaved={() => setSavedDrawerOpen(true)}
-        activeWorkspace={activeWorkspace}
-        onChangeWorkspace={setActiveWorkspace}
-        experienceTier={experienceTier}
-        onChangeExperienceTier={handleChangeExperienceTier}
-      />
-
-      <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
-        {errorMessage && (
-          <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+    <div className="min-h-screen bg-[var(--canvas)]">
+      <Header profile={profile} onProfile={changeProfile} workspace={activeWorkspace} onNavigate={navigate}
+        hasServerKey={hasServerKey} userApiKey={userApiKey} onSaveApiKey={setUserApiKey}
+        savedCount={savedMemos.length} onOpenSaved={() => setSavedDrawerOpen(true)} />
+      <main className="workspace-main" id="main-content" tabIndex={-1}>
+        {visitedPlanner && <div hidden={activeWorkspace !== "planner"}><HouseholdPlanner userApiKey={userApiKey}/></div>}
+        {activeWorkspace === "committee" && errorMessage && (
+          <div role="alert" className="mb-4 flex items-center gap-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
             <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        {rebalanceApplied && (
+        {activeWorkspace === "committee" && rebalanceApplied && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-100">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
               <span>
-                CIO Rebalance target weights have been applied to your portfolio in the
-                left workbench.
+                The proposed weights have been applied to your draft portfolio.
               </span>
             </div>
             <button
@@ -394,7 +434,10 @@ export default function HomePage() {
           </div>
         )}
 
-        {activeWorkspace === "global_tax" ? (
+        {activeWorkspace === "overview" || activeWorkspace === "library" ? (
+          <WorkspaceOverview profile={profile} showLibrary={activeWorkspace === "library"} onLibrary={open => navigate(open ? "library" : "overview")} onNavigate={navigate}
+            onExample={id => { handleSelectPreset(id); setActiveCanvasTab("executive"); navigate("committee"); }} />
+        ) : activeWorkspace === "agents" ? <AgentConnections profile={profile}/> : activeWorkspace === "planner" ? null : activeWorkspace === "global_tax" ? (
           <GlobalTaxModule
             initialJurisdiction={payload.jurisdiction ?? "Canada"}
             initialCapital={payload.capital}
@@ -411,14 +454,18 @@ export default function HomePage() {
               };
               setPayload(nextPayload);
               setActivePresetId(null);
-              setActiveWorkspace("committee");
+              navigate("committee");
+              setActiveCanvasTab("executive");
               void runAnalysis(nextPayload);
             }}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <section>
+            <h1 className="page-title">Portfolio research</h1>
+            <p className="page-description">{profiles[profile].prompt}</p>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
             {/* Left Workbench */}
-            <div className="lg:col-span-4 xl:col-span-3">
+            <div className="min-w-0 lg:col-span-4">
               <InputWorkbench
                 payload={payload}
                 onChange={(next) => {
@@ -426,7 +473,11 @@ export default function HomePage() {
                   setActivePresetId(null);
                   setRebalanceApplied(false);
                 }}
-                onRun={() => runAnalysis()}
+                onRun={() => {
+                  setActiveCanvasTab("executive");
+                  void runAnalysis();
+                  document.getElementById("research-results")?.focus();
+                }}
                 isRunning={isRunning}
                 activePresetId={activePresetId}
                 onSelectPreset={handleSelectPreset}
@@ -435,9 +486,10 @@ export default function HomePage() {
             </div>
 
             {/* Right Tabbed Intelligence & Quant Canvas */}
-            <div className="space-y-4 lg:col-span-8 xl:col-span-9">
+            <div id="research-results" tabIndex={-1} className="min-w-0 space-y-4 lg:col-span-8">
+              {analyzedPayload && analyzedPayload !== payload && <p className="result-note" role="status">These results use the previous inputs. Run the analysis to update them.</p>}
               {/* Focused Analyst Workspace Tab Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800/90 bg-[#0d1424]/95 p-2 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800/90 bg-[var(--surface)]/95 p-2 shadow-lg">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {canvasTabs.map((tab) => {
                     const Icon = tab.icon;
@@ -445,6 +497,7 @@ export default function HomePage() {
                     return (
                       <button
                         key={tab.id}
+                        aria-pressed={active}
                         type="button"
                         onClick={() => setActiveCanvasTab(tab.id)}
                         className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
@@ -475,25 +528,29 @@ export default function HomePage() {
                   })}
                 </div>
 
-                <span className="hidden px-2 text-[10px] font-medium uppercase tracking-wider text-slate-500 xl:inline">
-                  {experienceTier === "institutional"
-                    ? "Institutional Desk View"
-                    : "Prosumer Focus View"}
-                </span>
               </div>
-
+              {!isRunning && !cioMemo && activeCanvasTab !== "war_room" && <div className="system-panel empty-panel">
+                <BarChart3 size={24}/><h2>{errorMessage ? "Analysis incomplete" : "Ready when you are"}</h2>
+                <p>{({executive: "Review the inputs and run an analysis to see the investment case, its risks, and a proposed allocation.", quant_labs: "Run the portfolio first to explore projections, stress tests, and valuations using its holdings.", intel_access: "Run the portfolio to see its research signals and available investment vehicles."})[activeCanvasTab]}</p>
+              </div>}
+              {isRunning && activeCanvasTab !== "executive" && activeCanvasTab !== "war_room" && <p role="status" className="result-note">{statusMessage}</p>}
               {/* TAB 1: Executive Memo & Tax-Aware Rebalance Sandbox */}
               {activeCanvasTab === "executive" && (
                 <div className="space-y-4">
                   {cioMemo ? (
                     <>
+                      {profile === "beginner" && monteCarlo && <article className="system-panel beginner-brief">
+                        <h2>What could my savings become?</h2>
+                        <p>After {monteCarlo.horizonYears} years, the middle modeled outcome is <strong>${monteCarlo.medianEndingValue.toLocaleString("en-US")}</strong>. The middle 80% of simulated outcomes range from ${monteCarlo.downsideP10Value.toLocaleString("en-US")} to ${monteCarlo.upsideP90Value.toLocaleString("en-US")}.</p>
+                        <p>These estimates use your starting balance, monthly savings, and assumed returns. Try a different contribution and run the analysis again.</p>
+                      </article>}
                       <CioMemoDashboard
                         memo={cioMemo}
                         mode={activeMode}
                         modelUsed={modelUsed}
                         onSaveMemo={handleSaveMemo}
                         savedStatus={saveStatus}
-                        onToggleRebalanceSim={() =>
+                        onToggleRebalanceSim={analyzedPayload !== payload ? undefined : () =>
                           setRebalanceSimOpen((prev) => !prev)
                         }
                         rebalanceSimOpen={rebalanceSimOpen}
@@ -501,7 +558,7 @@ export default function HomePage() {
                         experienceTier={experienceTier}
                       />
 
-                      {rebalanceSimOpen && rebalanceSimulation && (
+                      {rebalanceSimOpen && rebalanceSimulation && (rebalanceApplied || analyzedPayload === payload) && (
                         <RebalanceSimulatorPanel
                           simulation={rebalanceSimulation}
                           options={rebalanceOptions}
@@ -528,12 +585,12 @@ export default function HomePage() {
                     </>
                   ) : (
                     /* While running initial analysis before CIO Memo arrives, show live streaming feed */
-                    <AgentDebateFeed
+                    isRunning ? <AgentDebateFeed
                       turns={debateTurns}
                       isRunning={isRunning}
                       statusMessage={statusMessage}
                       routingPlan={routingPlan}
-                    />
+                    /> : null
                   )}
                 </div>
               )}
@@ -543,14 +600,14 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {cioMemo && universalQuant && (
                     <IcWarRoom
-                      analysisRequest={payload}
+                      analysisRequest={{ ...resultInputs, audience: profile }}
                       cioMemo={cioMemo}
                       universalQuant={universalQuant}
                       rebalanceSimulation={rebalanceSimulation}
                       messages={warRoomMessages}
-                      onAddMessages={(newMsgs) =>
-                        setWarRoomMessages((prev) => [...prev, ...newMsgs])
-                      }
+                      onAddMessages={(newMsgs) => {
+                        if (resultVersion.current === activeVersion) setWarRoomMessages(prev => [...prev, ...newMsgs]);
+                      }}
                       userApiKey={userApiKey}
                       experienceTier={experienceTier}
                     />
@@ -574,11 +631,11 @@ export default function HomePage() {
                   <QuantAnalyticsPanel
                     metrics={portfolioMetrics}
                     dcfResult={dcfResult}
-                    dcfInputs={payload.dcfInputs}
+                    dcfInputs={resultInputs.dcfInputs}
                     monteCarlo={monteCarlo}
                     macroShocks={macroShocks}
                     universalQuant={universalQuant}
-                    requestPayload={payload}
+                    requestPayload={resultInputs}
                     userApiKey={userApiKey}
                   />
                 )}
@@ -609,7 +666,7 @@ export default function HomePage() {
                 </div>
               )}
             </div>
-          </div>
+          </div></section>
         )}
       </main>
 

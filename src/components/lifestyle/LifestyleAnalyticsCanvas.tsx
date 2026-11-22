@@ -162,7 +162,7 @@ export function LifestyleAnalyticsCanvas({
     <div className="space-y-4">
       {/* Top 6-Card KPI Command Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>Plan Success</span>
             <Target className="h-3.5 w-3.5 text-emerald-400" />
@@ -175,7 +175,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>Readiness Score</span>
             <Award className="h-3.5 w-3.5 text-cyan-400" />
@@ -189,7 +189,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>Liquid @ Age {inputs.retirementAge}</span>
             <Layers className="h-3.5 w-3.5 text-sky-400" />
@@ -202,7 +202,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>Safe Lifestyle / yr</span>
             <Activity className="h-3.5 w-3.5 text-violet-400" />
@@ -220,7 +220,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>FI Target Age</span>
             <Compass className="h-3.5 w-3.5 text-amber-400" />
@@ -235,7 +235,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-3.5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-3.5">
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
             <span>Savings / Tax</span>
             <Landmark className="h-3.5 w-3.5 text-teal-400" />
@@ -250,7 +250,7 @@ export function LifestyleAnalyticsCanvas({
       </div>
 
       {/* Sub-navigation Tabs & Export */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800/90 bg-[#0c1322] p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800/90 bg-[var(--surface)] p-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -287,7 +287,7 @@ export function LifestyleAnalyticsCanvas({
       {activeTab === "trajectory" && (
         <div className="space-y-4">
           {/* Monte Carlo Wealth Cone */}
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-white">
@@ -405,7 +405,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
 
           {/* Annual Income vs Lifestyle Spend Chart */}
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-white">
                 Annual After-Tax Income vs. Inflation-Adjusted Lifestyle Spend
@@ -472,7 +472,7 @@ export function LifestyleAnalyticsCanvas({
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Current Cash Flow Allocation */}
-            <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+            <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
               <h3 className="text-sm font-semibold text-white">
                 Annual Gross Cash Flow Allocation ({fmtExact(cashFlowBreakdown.grossIncome)})
               </h3>
@@ -520,7 +520,7 @@ export function LifestyleAnalyticsCanvas({
             </div>
 
             {/* Safe Lifestyle Spend Capacity vs Current Burn */}
-            <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+            <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
               <h3 className="text-sm font-semibold text-white">
                 Sustainable Lifestyle Spending Guardrails
               </h3>
@@ -620,7 +620,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
 
           {/* Milestone Funding Timeline */}
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <h3 className="text-sm font-semibold text-white">
               Life Milestones &amp; Major Liquidity Events Funding Audit
             </h3>
@@ -701,7 +701,7 @@ export function LifestyleAnalyticsCanvas({
       {activeTab === "tax_risk" && (
         <div className="space-y-4">
           {/* 5-Pillar Readiness Scorecard */}
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <h3 className="text-sm font-semibold text-white">
               5-Pillar Lifestyle Readiness Audit ({kpis.readinessScore}/100)
             </h3>
@@ -754,7 +754,7 @@ export function LifestyleAnalyticsCanvas({
 
           {/* Tax-Smart Accumulation & Decumulation Waterfalls */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+            <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">
                   Accumulation Tax Waterfall ({inputs.jurisdiction})
@@ -790,7 +790,7 @@ export function LifestyleAnalyticsCanvas({
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+            <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">
                   Decumulation / Retirement Withdrawal Order
@@ -828,7 +828,7 @@ export function LifestyleAnalyticsCanvas({
           </div>
 
           {/* Risk & Protection Checklist */}
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <h3 className="text-sm font-semibold text-white">
               Demographic Risk Transfer, Insurance &amp; Estate Checklist
             </h3>
@@ -881,7 +881,7 @@ export function LifestyleAnalyticsCanvas({
       {/* TAB 4: STRESS TESTS & WHAT-IF */}
       {activeTab === "stress" && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4">
+          <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4">
             <h3 className="text-sm font-semibold text-white">
               Real-Time Monte Carlo Stress Tests (Baseline: {kpis.successProbabilityPct}%)
             </h3>
@@ -952,7 +952,7 @@ export function LifestyleAnalyticsCanvas({
             {stressTests.map((s) => (
               <div
                 key={s.id}
-                className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-4"
+                className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-4"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -1004,7 +1004,7 @@ export function LifestyleAnalyticsCanvas({
 
       {/* TAB 5: CFP ADVISOR BRIEF */}
       {activeTab === "advisor_brief" && (
-        <div className="rounded-xl border border-slate-800/90 bg-[#0c1322] p-5">
+        <div className="rounded-xl border border-slate-800/90 bg-[var(--surface)] p-5">
           {!brief ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <FileText className="h-10 w-10 text-emerald-400/70" />

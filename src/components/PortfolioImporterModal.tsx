@@ -167,7 +167,7 @@ export function PortfolioImporterModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-[#0d1424] px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-slate-800 bg-[var(--surface)] px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/40">
               <FileUp className="h-4 w-4 text-emerald-400" />
@@ -535,7 +535,7 @@ export function PortfolioImporterModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-800 bg-[#0d1424] px-5 py-3">
+        <div className="flex items-center justify-between border-t border-slate-800 bg-[var(--surface)] px-5 py-3">
           <span className="text-[11px] text-slate-500">
             Imported positions populate the left workbench immediately for committee analysis.
           </span>

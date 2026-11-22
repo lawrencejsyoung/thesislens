@@ -1,3 +1,4 @@
+import { profiles } from "../lib/workspaces";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -104,7 +105,7 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
   const server = new McpServer({
     name: "thesislens-decision-engine",
     version: "1.0.0",
-  });
+  }, { instructions: "Start with the decision-brief prompt and its optional audience. Discover tools via tools/list and scenario inputs via resources/list. State which inputs were supplied or assumed, cite tool outputs, and identify simulated committee findings." });
 
   // ── TOOLS (16) ──────────────────────────────────────────────────────────────
 
@@ -460,6 +461,7 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
         "Guides an agent through clarifying a person's goals, running deterministic ThesisLens quant checks, and delivering an adversarial Bull vs. Bear pre-mortem with explicit invalidation triggers.",
       argsSchema: {
         decision: z.string().describe("The decision the user is trying to make."),
+        audience: z.enum(["beginner", "retail", "planner", "manager"]).optional().describe("Optional audience for the explanation and next steps."),
         capitalUsd: z.string().optional().describe("Approximate capital at stake (e.g. '100000')."),
         residency: z
           .string()
@@ -467,7 +469,7 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
           .describe("Tax residency (e.g. canada_on, us_ca, us_tx, uk, singapore)."),
       },
     },
-    ({ decision, capitalUsd, residency }) => ({
+    ({ decision, capitalUsd, residency, audience }) => ({
       messages: [
         {
           role: "user",
@@ -475,6 +477,7 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
             type: "text",
             text: [
               `Help the user make a high-conviction, mathematically grounded decision on: "${decision}".`,
+              audience ? profiles[audience].agent : "",
               capitalUsd ? `Capital at stake: $${capitalUsd}.` : "",
               residency ? `Tax residency: ${residency}.` : "",
               "",

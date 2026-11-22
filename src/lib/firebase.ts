@@ -41,6 +41,7 @@ function getDb(): Firestore | null {
 }
 
 export async function saveMemo(result: CompleteAnalysisResult): Promise<"firestore" | "local"> {
+  let savedLocally = false;
   // Always keep a local copy for instant responsiveness
   if (typeof window !== "undefined") {
     try {
@@ -48,6 +49,7 @@ export async function saveMemo(result: CompleteAnalysisResult): Promise<"firesto
       const filtered = existing.filter((m) => m.id !== result.id);
       const updated = [result, ...filtered].slice(0, 15);
       window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      savedLocally = true;
     } catch {
       // ignore storage quota issues
     }
@@ -56,21 +58,20 @@ export async function saveMemo(result: CompleteAnalysisResult): Promise<"firesto
   const db = getDb();
   if (db) {
     try {
+      const request = { ...result.request };
+      delete request.attachmentBase64;
       await addDoc(collection(db, "investment_memos"), {
         ...result,
-        // Strip large base64 attachments before storing in Firestore
-        request: {
-          ...result.request,
-          attachmentBase64: undefined,
-        },
+        request,
       });
       return "firestore";
     } catch {
-      return "local";
+      // Fall back to the local copy when available.
     }
   }
 
-  return "local";
+  if (savedLocally) return "local";
+  throw new Error("No memo storage destination succeeded.");
 }
 
 export function loadLocalMemos(): CompleteAnalysisResult[] {

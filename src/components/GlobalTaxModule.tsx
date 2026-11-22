@@ -218,7 +218,7 @@ export function GlobalTaxModule({
   return (
     <div className="space-y-4">
       {/* Header Banner + Global Tax Profile Controls */}
-      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-[#0e192d] via-[#0b1322] to-[#0d1628] p-4 shadow-xl">
+      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-[var(--raised)] via-[var(--surface)] to-[var(--surface)] p-4 shadow-xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export function GlobalTaxModule({
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white sm:text-base">
-                  Global Tax Module — Tax Consultant in Your Pocket
+                  Tax planning
                 </h2>
                 <p className="text-[11px] text-slate-400">
                   Cross-border asset location, tax-efficient accounts, business ownership, foreign real estate &amp; gain-access streams

@@ -133,20 +133,20 @@ export function AgentDebateFeed({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-[#0d1424] p-4 shadow-xl">
+    <div className="rounded-2xl border border-slate-800/90 bg-[var(--surface)] p-4 shadow-xl">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
         <div>
           <h2 className="text-sm font-bold text-white">
-            Live Multi-Agent Workforce Trace &amp; Deterministic Tool Calls
+            Committee activity
           </h2>
           <p className="text-xs text-slate-400">
-            Dynamic specialist fan-out invoking DCF, Prediction EV/Kelly, Black-Scholes, Real Assets &amp; Power-Law engines
+            Follow each specialist’s findings. Open a calculation to inspect its inputs and result.
           </p>
         </div>
         {isRunning && (
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>{statusMessage || "Analyzing..."}</span>
+            <span role="status">{statusMessage || "Analyzing…"}</span>
           </div>
         )}
       </div>
@@ -156,7 +156,7 @@ export function AgentDebateFeed({
         <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             <span>
-              Activated Roster ({routingPlan.activatedSpecialists.length} Agents ·{" "}
+              Assigned specialists ({routingPlan.activatedSpecialists.length} Agents ·{" "}
               {routingPlan.jurisdiction} Mandate)
             </span>
             <span className="font-mono text-cyan-300">
@@ -188,10 +188,10 @@ export function AgentDebateFeed({
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/50 py-10 text-center">
           <Terminal className="h-8 w-8 text-slate-600" />
           <p className="mt-2 text-xs font-medium text-slate-300">
-            Universal Workforce ready. Select any asset class or future outcome and click Run.
+            Run an analysis to see the committee’s findings.
           </p>
           <p className="mt-1 max-w-md text-[11px] text-slate-500">
-            The Intake Router dynamically spawns the right valuation specialists and maps cross-venue ways to bet on your thesis.
+            ThesisLens chooses specialists based on your question and portfolio.
           </p>
         </div>
       ) : (
@@ -243,6 +243,8 @@ export function AgentDebateFeed({
                   {turn.summary}
                 </p>
 
+                {(turn.keyPoints.length > 0 || turn.toolCalls.length > 0) && <details className="mt-3">
+                  <summary className="text-sm text-slate-300">Review evidence · {turn.toolCalls.length} {turn.toolCalls.length === 1 ? "calculation" : "calculations"}</summary>
                 {turn.keyPoints.length > 0 && (
                   <ul className="mt-2 space-y-1 pl-4 text-xs text-slate-300">
                     {turn.keyPoints.map((pt, i) => (
@@ -258,17 +260,18 @@ export function AgentDebateFeed({
                   <div className="mt-3 space-y-1.5 border-t border-slate-800/80 pt-2.5">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                       <Terminal className="h-3 w-3 text-cyan-400" />
-                      <span>Gemini Function Calls ({turn.toolCalls.length})</span>
+                      <span>Calculations ({turn.toolCalls.length})</span>
                     </div>
                     {turn.toolCalls.map((tc) => {
                       const open = Boolean(expandedTools[tc.id]);
                       return (
                         <div
                           key={tc.id}
-                          className="rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-1.5"
+                          className="rounded-lg border border-slate-800 bg-[var(--canvas)] px-2.5 py-1.5"
                         >
                           <button
                             type="button"
+                            aria-expanded={open}
                             onClick={() => toggleTool(tc.id)}
                             className="flex w-full items-center justify-between gap-2 text-left"
                           >
@@ -306,6 +309,7 @@ export function AgentDebateFeed({
                     })}
                   </div>
                 )}
+                </details>}
               </div>
             );
           })}

@@ -818,6 +818,7 @@ export interface CioInvestmentMemo {
 }
 
 export interface AnalysisRequestPayload {
+  audience?: import("./workspaces").Profile;
   title: string;
   thesisPrompt: string;
   analysisMode?: AnalysisMode;

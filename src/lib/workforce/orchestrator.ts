@@ -1,3 +1,4 @@
+import { audienceGuidance } from "../workspaces";
 import { GoogleGenAI, Type } from "@google/genai";
 import {
   AccessChecklistItem,
@@ -1711,6 +1712,7 @@ Jurisdiction: ${routingPlan.jurisdiction} | Risk Profile: ${request.riskProfile}
         parts: [
           {
             text: `You are Agent 5 (Chief Investment Officer). Synthesize all specialist outputs, expression vehicles, Bull/Bear debate, and deterministic quant numbers into a final Investment Committee Memo for a ${routingPlan.jurisdiction} investor.
+${audienceGuidance(request.audience)}
 
 Title: ${request.title}
 Holdings:

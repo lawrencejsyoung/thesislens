@@ -70,16 +70,16 @@ export function CioMemoDashboard({
       : "text-rose-400";
 
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-gradient-to-b from-[#10192d] to-[#0b1220] p-5 shadow-2xl">
+    <div className="rounded-2xl border border-slate-800/90 bg-gradient-to-b from-[var(--raised)] to-[var(--surface)] p-5 shadow-2xl">
       {/* Top Banner */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div className="max-w-2xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-              <Award className="h-3 w-3" /> CIO Universal Investment &amp; Outcome Memo
+              <Award className="h-3 w-3" /> Investment decision memo
             </span>
             <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-0.5 font-mono text-[10px] text-slate-400">
-              {mode === "live-gemini" ? `LIVE · ${modelUsed}` : modelUsed}
+              {mode === "live-gemini" ? `LIVE · ${modelUsed}` : "Simulated committee"}
             </span>
           </div>
           <h2 className="mt-2 text-lg font-bold tracking-tight text-white">
@@ -114,7 +114,7 @@ export function CioMemoDashboard({
           <button
             type="button"
             onClick={onSaveMemo}
-            disabled={savedStatus === "saving"}
+            disabled={savedStatus !== "idle"}
             className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/90 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-emerald-500/40 hover:text-emerald-300"
           >
             {savedStatus === "saved-firestore" || savedStatus === "saved-local" ? (
@@ -127,7 +127,7 @@ export function CioMemoDashboard({
             ) : (
               <>
                 <BookmarkPlus className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Save Memo</span>
+                <span>{savedStatus === "saving" ? "Saving…" : "Save memo"}</span>
               </>
             )}
           </button>
@@ -140,7 +140,7 @@ export function CioMemoDashboard({
           <Scale className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
           <div>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
-              Quantitative Valuation Verdict
+              Valuation finding
             </span>
             <p className="mt-0.5 text-xs text-slate-200">{memo.valuationVerdict}</p>
           </div>
@@ -151,7 +151,7 @@ export function CioMemoDashboard({
             <Compass className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
             <div>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-300">
-                Recommended Expression Stack &amp; Kelly Sizing
+                Proposed positions and sizing
               </span>
               <p className="mt-0.5 text-xs text-slate-200">
                 {memo.recommendedExpressionSummary}
@@ -166,7 +166,7 @@ export function CioMemoDashboard({
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
             <TrendingUp className="h-4 w-4" />
-            <span>Bull Case &amp; Asymmetric Drivers</span>
+            <span>What could go right</span>
           </div>
           <ul className="mt-2 space-y-1.5 text-xs text-slate-200">
             {memo.bullThesisHighlights.map((item, idx) => (

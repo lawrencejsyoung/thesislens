@@ -63,7 +63,7 @@ export function AccessExpressionMatrix({
   if (!vehicles || vehicles.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-800/90 bg-[#0d1424] p-4 shadow-xl">
+    <div className="rounded-2xl border border-slate-800/90 bg-[var(--surface)] p-4 shadow-xl">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
         <div>
           <div className="flex items-center gap-2">

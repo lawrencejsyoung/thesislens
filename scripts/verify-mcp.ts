@@ -35,6 +35,12 @@ async function testInMemoryServer() {
     },
   });
   assert(briefPrompt.messages.length === 1, "Prompt should return 1 message");
+  const plannerBrief = await client.getPrompt({
+    name: "decision-brief",
+    arguments: { decision: "Compare a household purchase with investing", audience: "planner" },
+  });
+  const guidance = plannerBrief.messages[0].content;
+  assert(guidance.type === "text" && guidance.text.includes("household's goals"));
   console.log(`   PASS: Discovered ${prompts.length} prompts & rendered 'decision-brief'.`);
 
   const { resources } = await client.listResources();

@@ -12,8 +12,6 @@ import {
   X,
   SlidersHorizontal,
   Search,
-  Globe2,
-  Compass,
 } from "lucide-react";
 import {
   PortfolioImportApplyPayload,
@@ -85,6 +83,7 @@ export function InputWorkbench({
   const [marketQuery, setMarketQuery] = useState("");
   const [marketResults, setMarketResults] = useState<LiveMarketQuote[]>([]);
   const [searchingMarkets, setSearchingMarkets] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
   const [importerOpen, setImporterOpen] = useState(false);
 
   const activeMode: AnalysisMode = payload.analysisMode ?? "portfolio";
@@ -260,6 +259,7 @@ export function InputWorkbench({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAttachmentError("");
     const file = e.target.files?.[0];
     if (!file) return;
     const allowedTypes = new Set([
@@ -269,10 +269,12 @@ export function InputWorkbench({
       "application/pdf",
     ]);
     if (!allowedTypes.has(file.type)) {
+      setAttachmentError("Choose a PNG, JPG, WebP, or PDF file.");
       e.target.value = "";
       return;
     }
     if (file.size > 4 * 1024 * 1024) {
+      setAttachmentError("Choose a file smaller than 4 MB.");
       e.target.value = "";
       return;
     }
@@ -287,99 +289,249 @@ export function InputWorkbench({
         attachmentName: file.name,
       });
     };
+    reader.onerror = () => setAttachmentError("The file could not be read. Choose it again.");
     reader.readAsDataURL(file);
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-slate-800/90 bg-[#0d1424] p-4 shadow-xl">
-      {/* Universal Showcase Scenarios */}
-      <div>
+    <div className="workbench system-panel">
+      <h2 className="text-lg font-semibold">Analysis inputs</h2>
+      <label className="grid gap-1.5 text-slate-300">Sample scenario
+        <select value={activePresetId ?? ""} onChange={e => onSelectPreset(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">
+          {!activePresetId && <option value="">Custom inputs</option>}
+          {PRESET_SCENARIOS.map(p => <option value={p.id} key={p.id}>{p.label}</option>)}
+        </select>
+      </label>
+      {/* Investment Thesis / Future Outcome Input */}
+      <div className="border-t border-slate-800/80 pt-3">
+        <label htmlFor="analysis-title" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Scenario title
+        </label>
+        <input
+          id="analysis-title" type="text"
+          value={payload.title}
+          onChange={(e) => onChange({ ...payload, title: e.target.value })}
+          className="mt-1.5 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-medium text-white focus:border-emerald-500 focus:outline-none"
+          placeholder="Any investment, deal, or future outcome question..."
+        />
+        <label htmlFor="thesis-question" className="mt-3 block text-xs text-slate-300">What do you want to find out?</label>
+        <textarea id="thesis-question"
+          rows={3}
+          value={payload.thesisPrompt}
+          onChange={(e) => onChange({ ...payload, thesisPrompt: e.target.value })}
+          className="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs leading-relaxed text-slate-200 focus:border-emerald-500 focus:outline-none"
+          placeholder="Describe your goal and what you want the committee to examine."
+        />
+      </div>
+
+      {/* Capital & Mandate Parameters */}
+      <div className="border-t border-slate-800/80 pt-3">
+        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Portfolio assumptions</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="research-input-1" className="text-[10px] text-slate-400">Initial Capital ($)</label>
+            <input id="research-input-1"
+              type="number"
+              min={1000}
+              step={1000}
+              value={payload.capital || ""}
+              onBlur={() => { if (payload.capital < 1000) onChange({ ...payload, capital: 1000 }); }}
+              onChange={(e) =>
+                onChange({
+                  ...payload,
+                  capital: Number(e.target.value) || 0,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="research-input-2" className="text-[10px] text-slate-400">Monthly savings ($)</label>
+            <input id="research-input-2"
+              type="number"
+              min={0}
+              step={100}
+              value={payload.monthlyContribution}
+              onChange={(e) =>
+                onChange({
+                  ...payload,
+                  monthlyContribution: Math.max(0, Number(e.target.value) || 0),
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="research-input-3" className="text-[10px] text-slate-400">Time horizon (years)</label>
+            <input id="research-input-3"
+              type="number"
+              min={1}
+              max={30}
+              value={payload.horizonYears || ""}
+              onBlur={() => { if (payload.horizonYears < 1) onChange({ ...payload, horizonYears: 1 }); }}
+              onChange={(e) =>
+                onChange({
+                  ...payload,
+                  horizonYears: Math.min(30, Math.max(0, Number(e.target.value) || 0)),
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="research-input-4" className="text-[10px] text-slate-400">Risk Profile</label>
+            <select id="research-input-4"
+              value={payload.riskProfile}
+              onChange={(e) =>
+                onChange({ ...payload, riskProfile: e.target.value as RiskProfile })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            >
+              <option value="conservative">Conservative</option>
+              <option value="balanced">Balanced</option>
+              <option value="aggressive">Aggressive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <details className="setup-section"><summary>Holdings and portfolio import ({payload.holdings.length})</summary>
+      {/* Multi-Asset Positions Editor */}
+      <div className="border-t border-slate-800/80 pt-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Universal Outcome Presets
+            Positions ({payload.holdings.length})
           </span>
-          <span className="text-[11px] text-emerald-400">7 Modes · $100M CFA</span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`font-mono text-[11px] font-semibold ${
+                hasShorts
+                  ? "text-cyan-300"
+                  : Math.abs(totalWeight - 100) < 0.5
+                  ? "text-emerald-400"
+                  : "text-amber-400"
+              }`}
+            >
+              {hasShorts
+                ? `G:${grossExposure.toFixed(0)}% / N:${netExposure.toFixed(0)}%`
+                : `Sum: ${totalWeight.toFixed(0)}%`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setImporterOpen(true)}
+              title="Import portfolio from CSV or JSON"
+              className="flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
+            >
+              <FileUp className="h-3 w-3" /> Import
+            </button>
+            <button
+              type="button"
+              onClick={addHolding}
+              className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-200 hover:border-emerald-500/50 hover:text-emerald-300"
+            >
+              <Plus className="h-3 w-3" /> Add
+            </button>
+          </div>
         </div>
-        <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-          {PRESET_SCENARIOS.map((preset) => {
-            const active = activePresetId === preset.id;
+
+        <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+          {payload.holdings.map((h, idx) => {
+            const isShort = h.side === "SHORT" || h.weightPct < 0;
+            const showShortToggle =
+              experienceTier === "institutional" || activeMode === "hedge_fund" || hasShorts;
             return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => onSelectPreset(preset.id)}
-                className={`w-full rounded-xl border p-2.5 text-left transition ${
-                  active
-                    ? "border-emerald-500/60 bg-emerald-500/10"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
-                }`}
+              <div
+                key={idx}
+                className="grid grid-cols-12 items-center gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1.5"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-white">
-                    {preset.label}
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      active
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-slate-800 text-slate-400"
+                {showShortToggle && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateHolding(idx, {
+                        side: isShort ? "LONG" : "SHORT",
+                        weightPct: Math.abs(h.weightPct),
+                      })
+                    }
+                    title="Toggle LONG / SHORT"
+                    className={`col-span-1 rounded border py-1 text-center font-mono text-[10px] font-bold transition ${
+                      isShort
+                        ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
+                        : "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
                     }`}
                   >
-                    {preset.badge}
-                  </span>
+                    {isShort ? "S" : "L"}
+                  </button>
+                )}
+                <input
+                  type="text"
+                  aria-label={`Holding ${idx + 1} ticker`}
+                  value={h.ticker}
+                  onChange={(e) =>
+                    updateHolding(idx, { ticker: e.target.value.toUpperCase() })
+                  }
+                  className={`${
+                    showShortToggle ? "col-span-3" : "col-span-4"
+                  } rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none`}
+                  placeholder="TICKER"
+                />
+                <select
+                  aria-label={`Holding ${idx + 1} sector`}
+                  value={h.sector}
+                  onChange={(e) =>
+                    updateHolding(idx, {
+                      sector: e.target.value as Holding["sector"],
+                    })
+                  }
+                  className="col-span-4 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 focus:border-emerald-500 focus:outline-none"
+                >
+                  {SECTORS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <div className="col-span-3 flex items-center rounded border border-slate-800 bg-slate-900 px-1.5 py-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    aria-label={`Holding ${idx + 1} weight percent`}
+                    value={Math.abs(h.weightPct)}
+                    onChange={(e) =>
+                      updateHolding(idx, { weightPct: Number(e.target.value) || 0 })
+                    }
+                    className="w-full bg-transparent font-mono text-[11px] text-white focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500">%</span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-400">
-                  {preset.description}
-                </p>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => removeHolding(idx)}
+                  className="col-span-1 flex justify-center text-slate-500 hover:text-rose-400"
+                  title="Remove position"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Mode & Jurisdiction Switcher */}
-      <div className="border-t border-slate-800/80 pt-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            <Compass className="h-3.5 w-3.5 text-cyan-400" />
-            Valuation &amp; Bet Mode
-          </span>
-          <div className="flex items-center gap-1">
-            <Globe2 className="h-3 w-3 text-slate-400" />
-            <select
-              value={jurisdiction}
-              onChange={(e) =>
-                onChange({
-                  ...payload,
-                  jurisdiction: e.target.value as Jurisdiction,
-                })
-              }
-              className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="Canada">Canada</option>
-              <option value="US">US</option>
-              <option value="Global">Global</option>
-            </select>
-          </div>
+      </details>
+      <details className="setup-section"><summary>Analysis type and supporting files</summary>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="grid gap-1">Analysis type<select value={activeMode} onChange={e => handleModeSwitch(e.target.value as AnalysisMode)} className="rounded border border-slate-700 bg-slate-950 p-2">
+            {MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select></label>
+          <label className="grid gap-1">Jurisdiction<select value={jurisdiction} onChange={e => onChange({ ...payload, jurisdiction: e.target.value as Jurisdiction })} className="rounded border border-slate-700 bg-slate-950 p-2">
+            {["Canada","US","Global"].map(j => <option key={j}>{j}</option>)}
+          </select></label>
         </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => handleModeSwitch(m.id)}
-              className={`rounded-lg border px-2 py-1 text-[10px] font-semibold transition ${
-                activeMode === m.id
-                  ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-200"
-                  : "border-slate-800 bg-slate-950/70 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Live Prediction Market Search (Polymarket / Kalshi) */}
       {(activeMode === "any_outcome" || activeMode === "prediction") && (
         <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-2.5">
@@ -435,27 +587,6 @@ export function InputWorkbench({
         </div>
       )}
 
-      {/* Investment Thesis / Future Outcome Input */}
-      <div className="border-t border-slate-800/80 pt-3">
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-          Future Outcome / Investment Thesis
-        </label>
-        <input
-          type="text"
-          value={payload.title}
-          onChange={(e) => onChange({ ...payload, title: e.target.value })}
-          className="mt-1.5 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-medium text-white focus:border-emerald-500 focus:outline-none"
-          placeholder="Any investment, deal, or future outcome question..."
-        />
-        <textarea
-          rows={3}
-          value={payload.thesisPrompt}
-          onChange={(e) => onChange({ ...payload, thesisPrompt: e.target.value })}
-          className="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs leading-relaxed text-slate-200 focus:border-emerald-500 focus:outline-none"
-          placeholder="Describe the thesis, odds, deal terms, or ask the workforce how to bet on this outcome..."
-        />
-      </div>
-
       {/* Mode-Specific Quick Deal Parameters */}
       {payload.predictionInputs &&
         (activeMode === "prediction" || activeMode === "any_outcome") && (
@@ -465,8 +596,8 @@ export function InputWorkbench({
             </span>
             <div className="mt-2 grid grid-cols-3 gap-2">
               <div>
-                <label className="text-[9px] text-slate-400">YES Price (¢)</label>
-                <input
+                <label htmlFor="research-input-5" className="text-[9px] text-slate-400">YES Price (¢)</label>
+                <input id="research-input-5"
                   type="number"
                   min={1}
                   max={99}
@@ -484,8 +615,8 @@ export function InputWorkbench({
                 />
               </div>
               <div>
-                <label className="text-[9px] text-slate-400">True Prob (%)</label>
-                <input
+                <label htmlFor="research-input-6" className="text-[9px] text-slate-400">True Prob (%)</label>
+                <input id="research-input-6"
                   type="number"
                   min={1}
                   max={99}
@@ -503,8 +634,8 @@ export function InputWorkbench({
                 />
               </div>
               <div>
-                <label className="text-[9px] text-slate-400">Side</label>
-                <select
+                <label htmlFor="research-input-7" className="text-[9px] text-slate-400">Side</label>
+                <select id="research-input-7"
                   value={payload.predictionInputs.side}
                   onChange={(e) =>
                     onChange({
@@ -532,8 +663,8 @@ export function InputWorkbench({
           </span>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="text-[9px] text-slate-400">Strategy</label>
-              <select
+              <label htmlFor="research-input-8" className="text-[9px] text-slate-400">Strategy</label>
+              <select id="research-input-8"
                 value={payload.optionInputs.strategy}
                 onChange={(e) =>
                   onChange({
@@ -554,8 +685,8 @@ export function InputWorkbench({
               </select>
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Strike ($)</label>
-              <input
+              <label htmlFor="research-input-9" className="text-[9px] text-slate-400">Strike ($)</label>
+              <input id="research-input-9"
                 type="number"
                 value={payload.optionInputs.strikePrice}
                 onChange={(e) =>
@@ -571,8 +702,8 @@ export function InputWorkbench({
               />
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">IV (%)</label>
-              <input
+              <label htmlFor="research-input-10" className="text-[9px] text-slate-400">IV (%)</label>
+              <input id="research-input-10"
                 type="number"
                 value={payload.optionInputs.impliedVolatilityPct}
                 onChange={(e) =>
@@ -604,8 +735,8 @@ export function InputWorkbench({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[9px] text-slate-400">Property Class</label>
-              <select
+              <label htmlFor="research-input-11" className="text-[9px] text-slate-400">Property Class</label>
+              <select id="research-input-11"
                 value={payload.realEstateInputs.propertyClass ?? "small_multifamily"}
                 onChange={(e) => {
                   const nextClass = e.target.value as RealEstatePropertyClass;
@@ -638,8 +769,8 @@ export function InputWorkbench({
               </select>
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Market</label>
-              <select
+              <label htmlFor="research-input-12" className="text-[9px] text-slate-400">Market</label>
+              <select id="research-input-12"
                 value={payload.realEstateInputs.marketId ?? "sudbury-on"}
                 onChange={(e) => {
                   const nextMarket = e.target.value;
@@ -663,8 +794,8 @@ export function InputWorkbench({
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[9px] text-slate-400">Price ($)</label>
-              <input
+              <label htmlFor="research-input-13" className="text-[9px] text-slate-400">Price ($)</label>
+              <input id="research-input-13"
                 type="number"
                 step={10000}
                 value={payload.realEstateInputs.purchasePrice}
@@ -681,8 +812,8 @@ export function InputWorkbench({
               />
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Rent/Yr ($)</label>
-              <input
+              <label htmlFor="research-input-14" className="text-[9px] text-slate-400">Rent/Yr ($)</label>
+              <input id="research-input-14"
                 type="number"
                 step={1200}
                 value={payload.realEstateInputs.grossAnnualRent}
@@ -699,8 +830,8 @@ export function InputWorkbench({
               />
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Rate (%)</label>
-              <input
+              <label htmlFor="research-input-15" className="text-[9px] text-slate-400">Rate (%)</label>
+              <input id="research-input-15"
                 type="number"
                 step={0.1}
                 value={payload.realEstateInputs.mortgageRatePct}
@@ -727,8 +858,8 @@ export function InputWorkbench({
           </span>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[9px] text-slate-400">Check ($)</label>
-              <input
+              <label htmlFor="research-input-16" className="text-[9px] text-slate-400">Check ($)</label>
+              <input id="research-input-16"
                 type="number"
                 step={5000}
                 value={payload.ventureInputs.investmentAmount}
@@ -745,8 +876,8 @@ export function InputWorkbench({
               />
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Val Cap ($M)</label>
-              <input
+              <label htmlFor="research-input-17" className="text-[9px] text-slate-400">Val Cap ($M)</label>
+              <input id="research-input-17"
                 type="number"
                 step={1}
                 value={Math.round(payload.ventureInputs.valuationCap / 1_000_000)}
@@ -763,8 +894,8 @@ export function InputWorkbench({
               />
             </div>
             <div>
-              <label className="text-[9px] text-slate-400">Fail %</label>
-              <input
+              <label htmlFor="research-input-18" className="text-[9px] text-slate-400">Fail %</label>
+              <input id="research-input-18"
                 type="number"
                 min={10}
                 max={90}
@@ -789,9 +920,9 @@ export function InputWorkbench({
       <div>
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Multimodal Deal / Chart Upload
+            Supporting document
           </span>
-          <span className="text-[10px] text-slate-500">PNG, JPG, PDF</span>
+          <span className="text-[10px] text-slate-500">PNG, JPG, WebP, PDF · 4 MB</span>
         </div>
 
         {payload.attachmentName ? (
@@ -824,7 +955,7 @@ export function InputWorkbench({
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 px-3 py-2 text-xs text-slate-400 transition hover:border-emerald-500/50 hover:text-emerald-300"
           >
             <Upload className="h-3.5 w-3.5" />
-            <span>Upload Term Sheet, Odds Screenshot, Pro Forma, or 10-K</span>
+            <span>Attach a chart or document</span>
           </button>
         )}
         <input
@@ -836,214 +967,24 @@ export function InputWorkbench({
         />
       </div>
 
-      {/* Capital & Mandate Parameters */}
-      <div className="border-t border-slate-800/80 pt-3">
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-400" />
-          <span>Investor Mandate</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="text-[10px] text-slate-400">Initial Capital ($)</label>
-            <input
-              type="number"
-              min={1000}
-              step={1000}
-              value={payload.capital}
-              onChange={(e) =>
-                onChange({
-                  ...payload,
-                  capital: Math.max(1000, Number(e.target.value) || 0),
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-400">Monthly Add ($)</label>
-            <input
-              type="number"
-              min={0}
-              step={100}
-              value={payload.monthlyContribution}
-              onChange={(e) =>
-                onChange({
-                  ...payload,
-                  monthlyContribution: Math.max(0, Number(e.target.value) || 0),
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-400">Horizon (Years)</label>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={payload.horizonYears}
-              onChange={(e) =>
-                onChange({
-                  ...payload,
-                  horizonYears: Math.min(30, Math.max(1, Number(e.target.value) || 1)),
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-400">Risk Profile</label>
-            <select
-              value={payload.riskProfile}
-              onChange={(e) =>
-                onChange({ ...payload, riskProfile: e.target.value as RiskProfile })
-              }
-              className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="conservative">Conservative</option>
-              <option value="balanced">Balanced</option>
-              <option value="aggressive">Aggressive</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Multi-Asset Positions Editor */}
-      <div className="border-t border-slate-800/80 pt-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Positions ({payload.holdings.length})
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`font-mono text-[11px] font-semibold ${
-                hasShorts
-                  ? "text-cyan-300"
-                  : Math.abs(totalWeight - 100) < 0.5
-                  ? "text-emerald-400"
-                  : "text-amber-400"
-              }`}
-            >
-              {hasShorts
-                ? `G:${grossExposure.toFixed(0)}% / N:${netExposure.toFixed(0)}%`
-                : `Sum: ${totalWeight.toFixed(0)}%`}
-            </span>
-            <button
-              type="button"
-              onClick={() => setImporterOpen(true)}
-              title="Import portfolio from CSV or JSON"
-              className="flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
-            >
-              <FileUp className="h-3 w-3" /> Import
-            </button>
-            <button
-              type="button"
-              onClick={addHolding}
-              className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-200 hover:border-emerald-500/50 hover:text-emerald-300"
-            >
-              <Plus className="h-3 w-3" /> Add
-            </button>
-          </div>
-        </div>
-
-        <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-          {payload.holdings.map((h, idx) => {
-            const isShort = h.side === "SHORT" || h.weightPct < 0;
-            const showShortToggle =
-              experienceTier === "institutional" || activeMode === "hedge_fund" || hasShorts;
-            return (
-              <div
-                key={`${h.ticker}-${idx}`}
-                className="grid grid-cols-12 items-center gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1.5"
-              >
-                {showShortToggle && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateHolding(idx, {
-                        side: isShort ? "LONG" : "SHORT",
-                        weightPct: Math.abs(h.weightPct),
-                      })
-                    }
-                    title="Toggle LONG / SHORT"
-                    className={`col-span-1 rounded border py-1 text-center font-mono text-[10px] font-bold transition ${
-                      isShort
-                        ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
-                        : "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                    }`}
-                  >
-                    {isShort ? "S" : "L"}
-                  </button>
-                )}
-                <input
-                  type="text"
-                  value={h.ticker}
-                  onChange={(e) =>
-                    updateHolding(idx, { ticker: e.target.value.toUpperCase() })
-                  }
-                  className={`${
-                    showShortToggle ? "col-span-3" : "col-span-4"
-                  } rounded border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] font-bold text-emerald-300 focus:border-emerald-500 focus:outline-none`}
-                  placeholder="TICKER"
-                />
-                <select
-                  value={h.sector}
-                  onChange={(e) =>
-                    updateHolding(idx, {
-                      sector: e.target.value as Holding["sector"],
-                    })
-                  }
-                  className="col-span-4 rounded border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 focus:border-emerald-500 focus:outline-none"
-                >
-                  {SECTORS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <div className="col-span-3 flex items-center rounded border border-slate-800 bg-slate-900 px-1.5 py-1">
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={Math.abs(h.weightPct)}
-                    onChange={(e) =>
-                      updateHolding(idx, { weightPct: Number(e.target.value) || 0 })
-                    }
-                    className="w-full bg-transparent font-mono text-[11px] text-white focus:outline-none"
-                  />
-                  <span className="text-[10px] text-slate-500">%</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeHolding(idx)}
-                  className="col-span-1 flex justify-center text-slate-500 hover:text-rose-400"
-                  title="Remove position"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
+        {attachmentError && <p role="alert" className="text-sm text-amber-300">{attachmentError}</p>}
+      </details>
       {/* Run Button */}
       <button
         type="button"
         disabled={isRunning}
         onClick={onRun}
-        className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        className="primary-action w-full"
       >
         {isRunning ? (
           <>
             <Sparkles className="h-4 w-4 animate-spin" />
-            <span>Dispatching Universal Workforce...</span>
+            <span>Analyzing…</span>
           </>
         ) : (
           <>
             <Play className="h-4 w-4 fill-slate-950" />
-            <span>Run Universal Valuation Workforce</span>
+            <span>Run analysis</span>
           </>
         )}
       </button>
