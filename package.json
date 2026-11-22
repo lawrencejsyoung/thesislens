@@ -18,6 +18,12 @@
     "verify:security": "tsx scripts/verify-security.ts",
     "verify:fundamentals": "tsx scripts/verify-fundamentals.ts",
     "verify:model": "tsx scripts/verify-model.ts",
+    "verify:analyst": "tsx scripts/verify-analyst.ts",
+    "verify:storage": "tsx scripts/verify-storage-jobs.ts",
+    "verify:backtest": "tsx scripts/verify-backtest.ts",
+    "verify:sectors": "tsx scripts/verify-sectors.ts",
+    "job:nightly": "tsx scripts/job-nightly.ts",
+    "job:poller": "tsx scripts/job-filing-poller.ts",
     "audit:fundamentals": "tsx scripts/audit-fundamentals.ts",
     "audit:models": "tsx scripts/audit-models.ts"
   },

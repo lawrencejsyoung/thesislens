@@ -9,6 +9,7 @@ import { QuantAnalyticsPanel } from "@/components/QuantAnalyticsPanel";
 import { AccessExpressionMatrix } from "@/components/AccessExpressionMatrix";
 import { IntelligenceHub } from "@/components/IntelligenceHub";
 import { GlobalTaxModule } from "@/components/GlobalTaxModule";
+import { CompanyModelLab } from "@/components/CompanyModelLab";
 import { SavedMemosDrawer } from "@/components/SavedMemosDrawer";
 import { RebalanceSimulatorPanel } from "@/components/RebalanceSimulatorPanel";
 import { IcWarRoom } from "@/components/IcWarRoom";
@@ -97,9 +98,9 @@ export default function HomePage() {
   const [warRoomMessages, setWarRoomMessages] = useState<WarRoomMessage[]>([]);
 
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
-  const [activeWorkspace, setActiveWorkspace] = useState<"committee" | "global_tax">(
-    "committee"
-  );
+  const [activeWorkspace, setActiveWorkspace] = useState<
+    "committee" | "global_tax" | "company_model"
+  >("committee");
   const [savedMemos, setSavedMemos] = useState<CompleteAnalysisResult[]>([]);
   const [savedSource, setSavedSource] = useState<"firestore" | "local">("local");
   const [saveStatus, setSaveStatus] = useState<
@@ -398,6 +399,21 @@ export default function HomePage() {
             initialJurisdiction={payload.jurisdiction ?? "Canada"}
             initialCapital={payload.capital}
             userApiKey={userApiKey}
+          />
+        ) : activeWorkspace === "company_model" ? (
+          <CompanyModelLab
+            userApiKey={userApiKey}
+            onSendToCommittee={(summary) => {
+              const nextPayload: AnalysisRequestPayload = {
+                ...payload,
+                title: summary.title,
+                thesisPrompt: summary.thesisPrompt,
+              };
+              setPayload(nextPayload);
+              setActivePresetId(null);
+              setActiveWorkspace("committee");
+              void runAnalysis(nextPayload);
+            }}
           />
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">

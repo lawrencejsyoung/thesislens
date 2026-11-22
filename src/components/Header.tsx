@@ -15,6 +15,7 @@ import {
   Briefcase,
   Compass,
   User,
+  Building2,
 } from "lucide-react";
 import { ExperienceTier } from "@/lib/types";
 
@@ -25,8 +26,8 @@ interface HeaderProps {
   activeMode: "live-gemini" | "demo-simulation";
   savedCount?: number;
   onOpenSaved?: () => void;
-  activeWorkspace?: "committee" | "global_tax";
-  onChangeWorkspace?: (workspace: "committee" | "global_tax") => void;
+  activeWorkspace?: "committee" | "global_tax" | "company_model";
+  onChangeWorkspace?: (workspace: "committee" | "global_tax" | "company_model") => void;
   experienceTier?: ExperienceTier;
   onChangeExperienceTier?: (tier: ExperienceTier) => void;
 }
@@ -141,26 +142,48 @@ export function Header({
             )}
 
             {onChangeWorkspace && (
-              <button
-                type="button"
-                onClick={() =>
-                  onChangeWorkspace(
-                    activeWorkspace === "global_tax" ? "committee" : "global_tax"
-                  )
-                }
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                  activeWorkspace === "global_tax"
-                    ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm shadow-emerald-500/20"
-                    : "border-cyan-500/35 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
-                }`}
-              >
-                <Landmark className="h-3.5 w-3.5" />
-                <span>
-                  {activeWorkspace === "global_tax"
-                    ? "Back to Committee"
-                    : "Global Tax Consultant"}
-                </span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeWorkspace(
+                      activeWorkspace === "company_model" ? "committee" : "company_model"
+                    )
+                  }
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    activeWorkspace === "company_model"
+                      ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm shadow-emerald-500/20"
+                      : "border-emerald-500/35 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span>
+                    {activeWorkspace === "company_model"
+                      ? "Back to Committee"
+                      : "Company Model"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeWorkspace(
+                      activeWorkspace === "global_tax" ? "committee" : "global_tax"
+                    )
+                  }
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    activeWorkspace === "global_tax"
+                      ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 shadow-sm shadow-emerald-500/20"
+                      : "border-cyan-500/35 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
+                  }`}
+                >
+                  <Landmark className="h-3.5 w-3.5" />
+                  <span>
+                    {activeWorkspace === "global_tax"
+                      ? "Back to Committee"
+                      : "Global Tax Consultant"}
+                  </span>
+                </button>
+              </>
             )}
 
             {/* Mode Pill */}

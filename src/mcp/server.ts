@@ -11,6 +11,7 @@ import {
   adversarialCommitteeInputSchema,
   bondDurationInputSchema,
   cfaForensicsInputSchema,
+  companyAnalystInputSchema,
   companyFundamentalsInputSchema,
   companyModelInputSchema,
   compareDecisionOptionsInputSchema,
@@ -31,6 +32,7 @@ import {
   handlePriceOptionStrategy,
   handleQueryIntelligence,
   handleRunAdversarialCommittee,
+  handleRunCompanyAnalyst,
   handleSearchPredictionMarkets,
   handleSimulateRebalance,
   handleUnderwriteRealEstate,
@@ -363,13 +365,31 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     {
       title: "Three-Statement Company Model & DCF",
       description:
-        "Builds a linked income statement / balance sheet / cash flow model (10 forecast years by default) from a company's SEC filings, then values it with an FCFF DCF (CAPM WACC, value-driver terminal value), bear/base/bull scenarios and a WACC x growth sensitivity grid. Every baseline assumption is derived from reported history and documented; pass driver overrides with a rationale to express a view. Not for banks, insurers or brokers.",
+        "Builds a linked income statement / balance sheet / cash flow model (10 forecast years by default) from a company's SEC filings, then values it with an FCFF DCF or specialist sector model (banks, insurers, REITs, utilities, commodities, pharma, autos), bear/base/bull scenarios and a sensitivity grid. Every baseline assumption is derived from reported history and documented; pass driver overrides with a rationale to express a view.",
       inputSchema: companyModelInputSchema,
       annotations: READ_ONLY_LIVE,
     },
     async (args) => {
       try {
         return toToolResult(await handleBuildCompanyModel(args));
+      } catch (err) {
+        return toErrorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "run_company_analyst",
+    {
+      title: "AI Equity Analyst Company Model",
+      description:
+        "Runs the Phase 3 AI equity analyst loop: loads SEC fundamentals, FRED 10Y Treasury + Damodaran ERP rates, and the company dossier, then uses Gemini (or configured ANALYST_PROVIDER) with tool calls to propose cited, sector-bounded overrides and compute a validated three-statement valuation model.",
+      inputSchema: companyAnalystInputSchema,
+      annotations: READ_ONLY_LIVE,
+    },
+    async (args) => {
+      try {
+        return toToolResult(await handleRunCompanyAnalyst(args, options.geminiApiKey));
       } catch (err) {
         return toErrorResult(err);
       }

@@ -206,6 +206,24 @@ export interface ModelCheck {
   message: string;
 }
 
+export interface SectorValuationDetail {
+  method:
+    | "fcff-dcf"
+    | "bank-residual-income"
+    | "insurance-embedded-value"
+    | "capital-markets-aum-roe"
+    | "reit-nav-affo"
+    | "utility-rate-base"
+    | "commodity-reserve-nav"
+    | "pharma-rnpv-blend"
+    | "auto-captive-split";
+  label: string;
+  summary: string;
+  metrics: Record<string, number | string>;
+  /** Secondary DCF or cross-check value per share when blended. */
+  crossCheckValuePerShare?: number | null;
+}
+
 export interface CompanyModel {
   ticker: string;
   name: string;
@@ -223,4 +241,6 @@ export interface CompanyModel {
   probabilityWeightedValue: number;
   checks: ModelCheck[];
   warnings: string[];
+  /** Phase 6 specialist sector valuation breakdown (populated for banks, insurers, REITs, utilities, commodities, pharma, autos). */
+  sectorValuation?: SectorValuationDetail;
 }

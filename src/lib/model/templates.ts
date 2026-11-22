@@ -6,10 +6,21 @@ import type { TemplateId } from "../fundamentals/sector";
  * Unlevered betas are approximate sector medians in the spirit of Damodaran's global industry
  * tables; they are placeholders until a regression beta from a price feed is available.
  */
+export type TemplateValuationMethod =
+  | "fcff-dcf"
+  | "bank-residual-income"
+  | "insurance-embedded-value"
+  | "capital-markets-aum-roe"
+  | "reit-nav-affo"
+  | "utility-rate-base"
+  | "commodity-reserve-nav"
+  | "pharma-rnpv-blend"
+  | "auto-captive-split";
+
 export interface TemplateConfig {
   id: TemplateId;
-  /** Whether the operating-company FCFF engine is a valid primary method for this sector. */
-  method: "fcff-dcf" | "fcff-dcf-indicative" | "unsupported";
+  /** Primary valuation method used for this sector (Phase 6 covers all 19 templates). */
+  method: TemplateValuationMethod;
   unleveredBeta: number;
   targetDebtWeight: number;
   terminalGrowth: number;
@@ -58,61 +69,84 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
   consumer: cfg("consumer", { unleveredBeta: 0.6, targetDebtWeight: 0.2, terminalGrowth: 0.025, terminalRonicSpread: 0.05 }),
   retail: cfg("retail", { unleveredBeta: 0.85, targetDebtWeight: 0.15, terminalRonicSpread: 0.04 }),
   pharma: cfg("pharma", {
+    method: "pharma-rnpv-blend",
     unleveredBeta: 0.85,
     matureEbitMargin: 0.25,
     targetDebtWeight: 0.15,
     terminalGrowth: 0.02,
     terminalRonicSpread: 0.05,
-    note: "Pipeline value (rNPV by asset) is not modelled yet; DCF reflects the current portfolio trajectory.",
+    note: "Commercial portfolio FCFF DCF plus risk-adjusted pipeline NPV (rNPV).",
   }),
   "healthcare-services": cfg("healthcare-services", { unleveredBeta: 0.8, targetDebtWeight: 0.2 }),
   utility: cfg("utility", {
-    method: "fcff-dcf-indicative",
+    method: "utility-rate-base",
     unleveredBeta: 0.35,
     targetDebtWeight: 0.5,
     terminalGrowth: 0.02,
     terminalRonicSpread: 0.005,
-    note: "Regulated utilities are better valued on rate base x allowed ROE; treat this DCF as indicative.",
+    note: "Regulated rate base x allowed ROE residual-income valuation.",
   }),
   energy: cfg("energy", {
+    method: "commodity-reserve-nav",
     unleveredBeta: 0.85,
     targetDebtWeight: 0.2,
     terminalGrowth: 0.015,
     terminalRonicSpread: 0.01,
     cyclical: true,
-    note: "Commodity-price deck and reserve NAV are not modelled yet; margins reflect the latest cycle.",
+    note: "Commodity price-deck sensitivity & reserve NAV blended with through-cycle DCF.",
   }),
-  materials: cfg("materials", { unleveredBeta: 0.9, targetDebtWeight: 0.2, terminalGrowth: 0.02, terminalRonicSpread: 0.01, cyclical: true }),
+  materials: cfg("materials", {
+    method: "commodity-reserve-nav",
+    unleveredBeta: 0.9,
+    targetDebtWeight: 0.2,
+    terminalGrowth: 0.02,
+    terminalRonicSpread: 0.01,
+    cyclical: true,
+    note: "Commodity price-deck sensitivity & reserve NAV blended with through-cycle DCF.",
+  }),
   telecom: cfg("telecom", { unleveredBeta: 0.55, targetDebtWeight: 0.4, terminalGrowth: 0.015, terminalRonicSpread: 0.01 }),
   auto: cfg("auto", {
+    method: "auto-captive-split",
     unleveredBeta: 0.9,
     targetDebtWeight: 0.3,
     terminalGrowth: 0.02,
     terminalRonicSpread: 0.0,
     cyclical: true,
     matureEbitMargin: 0.08,
-    note: "Captive-finance debt (e.g. Ford Credit, GM Financial) is not separated from industrial net debt yet, which understates equity value.",
+    note: "Separates captive-finance debt from industrial net debt in the EV-to-equity bridge.",
   }),
   payments: cfg("payments", { unleveredBeta: 1.0, targetDebtWeight: 0.1, terminalGrowth: 0.03, terminalRonicSpread: 0.08, matureEbitMargin: 0.25 }),
   reit: cfg("reit", {
-    method: "fcff-dcf-indicative",
+    method: "reit-nav-affo",
     unleveredBeta: 0.6,
     targetDebtWeight: 0.35,
     terminalGrowth: 0.02,
     terminalRonicSpread: 0.0,
-    note: "REITs are better valued on NAV and AFFO multiples; treat this DCF as indicative.",
+    note: "NAV (NOI / cap rate - net debt) blended with AFFO multiple valuation.",
   }),
   bank: cfg("bank", {
-    method: "unsupported",
-    note: "Banks need a residual-income / P-TBV model (debt is raw material, not financing). Planned for Phase 6.",
+    method: "bank-residual-income",
+    unleveredBeta: 1.1,
+    targetDebtWeight: 0,
+    terminalGrowth: 0.025,
+    terminalRonicSpread: 0.02,
+    note: "Residual-income / excess-return model + P/TBV vs ROTE valuation.",
   }),
   insurance: cfg("insurance", {
-    method: "unsupported",
-    note: "Insurers need an embedded-value / ROE-based model. Planned for Phase 6.",
+    method: "insurance-embedded-value",
+    unleveredBeta: 0.95,
+    targetDebtWeight: 0,
+    terminalGrowth: 0.025,
+    terminalRonicSpread: 0.015,
+    note: "Embedded-value / ROE excess-return valuation.",
   }),
   "capital-markets": cfg("capital-markets", {
-    method: "unsupported",
-    note: "Brokers and asset managers need a balance-sheet-light ROE or fee-earning-AUM model. Planned for Phase 6.",
+    method: "capital-markets-aum-roe",
+    unleveredBeta: 1.15,
+    targetDebtWeight: 0.1,
+    terminalGrowth: 0.03,
+    terminalRonicSpread: 0.03,
+    note: "Balance-sheet-light ROE & fee-earning earnings multiple blend.",
   }),
 };
 

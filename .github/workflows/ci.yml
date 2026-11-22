@@ -48,6 +48,18 @@ jobs:
       - name: Three-statement model & DCF verification
         run: npm run verify:model
 
+      - name: Phase 3 AI analyst & dossier verification
+        run: npm run verify:analyst
+
+      - name: Phase 4 storage & refresh jobs verification
+        run: npm run verify:storage
+
+      - name: Phase 5 point-in-time backtest verification
+        run: npm run verify:backtest
+
+      - name: Phase 6 specialist sectors & international verification
+        run: npm run verify:sectors
+
       - name: MCP server verification
         run: npm run verify:mcp
 
