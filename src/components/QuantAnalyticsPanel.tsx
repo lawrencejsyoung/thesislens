@@ -699,7 +699,7 @@ export function QuantAnalyticsPanel({
                           borderRadius: "10px",
                           fontSize: "12px",
                         }}
-                        formatter={(value: number, name: string) => [fmtUsd(value), name]}
+                        formatter={(value, name) => [fmtUsd(Number(value)), String(name)]}
                         labelFormatter={(label) => `Underlying Spot: $${label}`}
                       />
                       <Line
@@ -932,7 +932,7 @@ export function QuantAnalyticsPanel({
                       borderRadius: "10px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number, name: string) => [fmtUsd(value), name]}
+                    formatter={(value, name) => [fmtUsd(Number(value)), String(name)]}
                     labelFormatter={(label) => `Year ${label}`}
                   />
                   <Area
@@ -1034,10 +1034,10 @@ export function QuantAnalyticsPanel({
                       borderRadius: "10px",
                       fontSize: "12px",
                     }}
-                    formatter={(val: number) => [
-                      `${val >= 0 ? "+" : ""}${val}%`,
-                      "Portfolio Impact",
-                    ]}
+                    formatter={(v) => {
+                      const val = Number(v);
+                      return [`${val >= 0 ? "+" : ""}${val}%`, "Portfolio Impact"];
+                    }}
                   />
                   <Bar dataKey="portfolioImpactPct" radius={[6, 6, 0, 0]}>
                     {macroShocks.map((entry) => (

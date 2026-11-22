@@ -645,7 +645,7 @@ export function RealEstateAnalysisLab({
                           borderRadius: "10px",
                           fontSize: "11px",
                         }}
-                        formatter={(value: number, name: string) => [fmtUsd(value), name]}
+                        formatter={(value, name) => [fmtUsd(Number(value)), String(name)]}
                         labelFormatter={(label) => `Hold Year ${label}`}
                       />
                       <Legend wrapperStyle={{ fontSize: "10px" }} />
@@ -984,7 +984,7 @@ export function RealEstateAnalysisLab({
                       borderRadius: "10px",
                       fontSize: "11px",
                     }}
-                    formatter={(val: number, name: string) => [`${val}%`, name]}
+                    formatter={(val, name) => [`${val}%`, String(name)]}
                   />
                   <Legend wrapperStyle={{ fontSize: "10px" }} />
                   <ReferenceLine y={12} stroke="#10b981" strokeDasharray="3 3" />
