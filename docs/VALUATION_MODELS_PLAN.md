@@ -90,79 +90,192 @@ one company lacks share data. Every model balances and its cash ties out.
 
 ---
 
-## Phase 3: company dossier and LLM analyst ⏳ Next
+## Roadmap at a glance
 
-The goal is to turn the mechanical baseline into an analyst view anchored to guidance, call
-transcripts and filing text.
+```mermaid
+flowchart TD
+  P1["Phase 1 · SEC fundamentals ✅"] --> P2["Phase 2 · Three-statement engine + DCF ✅"]
+  P2 --> P3["Phase 3 · Dossier + Gemini analyst (next)"]
+  P3 --> P4["Phase 4 · Cloud SQL, refresh jobs, UI"]
+  P4 --> P5["Phase 5 · Point-in-time backtest"]
+  P5 --> G{"Gate: beats naive baseline in 6 of 8 templates, zero look-ahead"}
+  G -- pass --> P6["Phase 6 · Full coverage"]
+  G -- fail: rework --> P3
+```
 
-- `src/lib/dossier/`: builds a compact context pack per company (about 20–40k tokens) containing:
-  - history as CSV (from Phase 1)
-  - segment and KPI history
-  - a dated guidance log
-  - the prior model's assumptions
-  - the filing and transcript passages relevant to each driver
-- **Segments and KPIs:** from the SEC Financial Statement & Notes datasets (companyfacts has no
-  segment detail), with LLM extraction from 10-K/10-Q filings where those fall short. Segments
-  must sum to reported totals or the data is rejected.
-- **Guidance:** extracted from earnings press releases (8-K exhibit 99.1).
-- `src/lib/analyst/`: the LLM writes its assumption overrides into the Phase 2 schema.
-  - Tools: `get_filing_section`, `get_kpi_history`, `get_guidance`, and `run_model`, so it can
-    see the result and revise.
-  - A validator rejects assumptions with no citation or outside sector limits, and flags any
-    that differ from guidance without an explanation.
-- **Cost:** sector instructions, the template schema and worked examples form a shared prompt
-  prefix that gets cached, so each company pays only for its own pack.
-- **Provider (D4):** an `AnalystModel` interface. Gemini is the default; other providers are
-  adapters selected by `ANALYST_PROVIDER`.
-- **Data providers (D1):** introduce the `FundamentalsProvider`, `MarketDataProvider`,
-  `RatesProvider` and `ConsensusProvider` interfaces, wrap the SEC client as the first
-  implementation, and add FRED rates as the first free `RatesProvider`.
+Phase 4's schema and migrations can start alongside Phase 3; its filing poller needs the Phase 3
+analyst. The Phase 5 backtest is the one hard gate.
 
-## Phase 4: storage, automatic refresh and UI
+## Phase 3: company dossier and Gemini analyst ⏳ Next
 
-- **Postgres on Cloud SQL, with pgvector for text search** (decision D3). Tables:
-  - `companies`
-  - `facts` (with filing dates)
-  - `kpis`
-  - `guidance`
-  - `doc_chunks`
-  - `model_versions` (assumptions and outputs, versioned)
-  - `runs`
-- **Cloud Run Jobs:**
-  - a nightly refresh of the whole universe
-  - a poller for new EDGAR filings that re-models only the affected company, using a
-    "what changed since the last model" prompt
-- **UI:** a new Company Model tab showing:
-  - the statement grid
-  - each driver with its citation
-  - scenario toggles
-  - price-target history
+Turns the mechanical baseline into an analyst view: Gemini reads guidance, call commentary and
+filing text, then writes cited overrides that the Phase 2 engine computes.
 
-  The existing IC committee also gets the full model as input.
+**3a. Provider interfaces (D1, D4)**
 
-## Phase 5: backtesting, before expanding coverage
+- `FundamentalsProvider`: wraps today's SEC client as the first implementation.
+- `RatesProvider`: the FRED 10-year Treasury replaces the fixed 4.25% risk-free rate; Damodaran's
+  implied ERP replaces the fixed 4.5%.
+- `MarketDataProvider`: prices, betas and market caps. Free default = price passed in by the caller.
+- `ConsensusProvider`: interface only; no free implementation.
+- `AnalystModel`: structured output plus tool calls. Gemini (`@google/genai`, `GEMINI_MODEL`) is
+  the default; other providers are adapters selected by `ANALYST_PROVIDER`.
 
-- For 50 companies, rebuild the model as of each of the last 8 quarters using `asOf`
-  (Phase 1 already supports this).
-- Measure next-quarter revenue and EPS error against a naive seasonal baseline. Comparing
-  against historical consensus needs a paid `ConsensusProvider`, which is optional under D1.
-- **Gate:** coverage doesn't expand until the models beat the baseline.
+**3b. Company dossier** (`src/lib/dossier/`)
+
+- A compact pack per company, about 20–40k tokens: history as CSV, segment and KPI history, a
+  dated guidance log, the prior model's assumptions, and the filing passages relevant to each driver.
+- Segments and KPIs come from the SEC Financial Statement & Notes datasets; LLM extraction from
+  10-K/10-Q text fills gaps. Segments must sum to reported totals or are rejected.
+- Guidance comes from earnings press releases (8-K exhibit 99.1), each entry dated and linked to
+  its filing.
+- Filing text is split into sections (MD&A, segment notes, risk factors) so the analyst fetches
+  only what a driver needs.
+
+**3c. Analyst loop** (`src/lib/analyst/`)
+
+1. Load the dossier and the baseline model.
+2. Gemini proposes overrides in the Phase 2 schema, each citing a dossier passage.
+3. It can call `get_filing_section`, `get_kpi_history`, `get_guidance` and `run_model` to check the
+   result and revise.
+4. A validator rejects uncited assumptions or ones outside sector bounds, and flags any that differ
+   from guidance without a stated reason.
+5. The final model, notes and citations are returned; nothing is stored yet (Phase 4).
+
+**3d. Cost control**
+
+- Sector instructions, the template schema and worked examples form a shared, cached prompt
+  prefix; each company adds only its own pack.
+- Full-universe runs use batch requests.
+
+**Interfaces:** `POST /api/model` gains `analyst: true`; a new MCP tool `run_company_analyst`.
+
+**Done when:**
+
+- [ ] Every override in an analyst model carries a resolvable citation.
+- [ ] 20 reference companies run end to end with zero validator rejections on the final pass.
+- [ ] FRED rates replace the fixed defaults, with the as-of date recorded.
+- [ ] Offline `verify:analyst` runs against recorded model responses (no API key in CI).
+
+## Phase 4: storage, refresh jobs and UI
+
+Makes models persistent and self-updating: Postgres on Cloud SQL (D3) holds versioned models, and
+Cloud Run Jobs re-model a company whenever it files.
+
+**Schema** (migrations in the repo; pgvector for filing text)
+
+| Table | Holds |
+|---|---|
+| `companies` | Ticker, CIK, predecessor CIKs, template, currency, universe membership |
+| `facts` | Normalized line items per period, with tag, accession number and filing date |
+| `kpis` | Segment and operating KPIs per period, with source |
+| `guidance` | Dated guidance items linked to their filing |
+| `doc_chunks` | Filing and release text sections, with embeddings |
+| `model_versions` | Assumptions, notes, outputs and citations per model run; one row per version |
+| `runs` | Job runs: trigger, duration, token cost, errors |
+
+**Jobs** (Cloud Run Jobs; Cloud SQL connector)
+
+- Nightly: refresh SEC facts for the whole universe, rebuild baseline models.
+- Filing poller: watch the EDGAR feed; on a new 10-K, 10-Q, 20-F or earnings 8-K, re-run the
+  analyst for that company only, with a "what changed since the last model" prompt.
+- The file cache stays as the raw SEC response cache.
+
+**UI: Company Model tab**
+
+- Statement grid (history plus forecast) with each driver's value and citation.
+- Bear/base/bull toggle, the sensitivity grid and price-target history across model versions.
+- The existing IC committee receives the full model as input.
+
+**Done when:**
+
+- [ ] A new filing triggers a new model version within one hour, with no manual step.
+- [ ] Any model version can be reopened with its exact inputs and citations.
+- [ ] The UI shows the full statement grid and assumption notes for any covered ticker.
+
+## Phase 5: backtesting and the expansion gate
+
+Coverage doesn't expand until analyst models forecast next-quarter results better than a naive
+baseline, measured without look-ahead.
+
+**Method**
+
+1. Pick 50 companies across at least 8 templates.
+2. For each of the last 8 quarters, rebuild the dossier and model as of the day before that
+   quarter's earnings release, using the Phase 1 `asOf` cutoff. Filing text is filtered by the
+   same date.
+3. Compare the model's next-quarter revenue and diluted EPS with the reported figures.
+4. Score three forecasters on the same quarters: the Phase 2 baseline, the Phase 3 analyst, and a
+   naive seasonal baseline (same quarter last year × trailing growth).
+
+**Metrics**
+
+- Median absolute percentage error (revenue, EPS), overall and by template.
+- Directional hit rate versus the prior-year quarter.
+- Share of citations that resolve to a passage filed before the as-of date (look-ahead audit;
+  must be 100%).
+- Against analyst consensus only once a paid `ConsensusProvider` is added (optional under D1).
+
+**Gate**
+
+- [ ] Analyst beats the naive baseline on median revenue error in at least 6 of 8 templates.
+- [ ] Analyst beats the Phase 2 baseline on median EPS error overall.
+- [ ] Look-ahead audit at 100%.
+
+A failed gate sends the work back to Phase 3 prompts, dossier content or template defaults, not
+forward to Phase 6.
 
 ## Phase 6: full coverage
 
-- **Remaining sector models:**
-  - banks: residual income, price to tangible book
-  - insurers: embedded value / ROE
-  - brokers and asset managers
-  - REITs: NAV, AFFO
-  - utilities: rate base × allowed ROE
-  - oil & gas and mining: commodity deck, reserve NAV
-  - pharma: risk-adjusted pipeline value by asset
-  - autos: separate captive-finance debt
-- **Non-US data:** EU filings via ESEF iXBRL, Japan via the EDINET API, and a vendor for
-  everything else.
-- **Consensus estimates feed.**
-- **True top-500 ranking** by market cap, which needs a market-data feed.
+Closes the gaps the FCFF engine can't cover: financials, specialist sectors and companies outside
+SEC filings.
+
+**Sector models**
+
+| Sector | Method | Replaces today's |
+|---|---|---|
+| Banks | Residual income; price to tangible book vs ROTE | Refused |
+| Insurers | Embedded value / ROE-based | Refused |
+| Brokers, asset managers | Fee-earning AUM or balance-sheet-light ROE | Refused |
+| REITs | NAV plus AFFO multiple | Indicative DCF |
+| Utilities | Rate base × allowed ROE | Indicative DCF |
+| Oil & gas, mining | Commodity price deck; reserve NAV | Cyclical-fade DCF |
+| Pharma & biotech | Risk-adjusted NPV by pipeline asset | Portfolio-trajectory DCF |
+| Autos | Separate captive-finance debt from industrial | DCF with finance debt included |
+
+**Data beyond the SEC**
+
+- EU filers via ESEF iXBRL (filings.xbrl.org); Japan via the EDINET API.
+- Other markets through a paid `FundamentalsProvider` adapter (D1).
+- ADR handling: price conversion and ADR ratios, so per-share values compare with the listed price.
+
+**Paid provider adapters (optional, D1)**
+
+- `MarketDataProvider`: live prices, regression betas, market caps. Enables a true top-500 ranking.
+- `ConsensusProvider`: Street estimates for the Phase 5 comparison and for flagging where the model
+  differs from consensus.
+
+**Done when:**
+
+- [ ] Every top-500 company gets a model from an appropriate method (none refused).
+- [ ] The universe is ranked by market cap from a provider, not a hand-kept list.
+- [ ] Each new sector model passes its own `verify:*` test and a Phase 5 backtest.
+
+## Risks
+
+| Risk | Effect | Mitigation |
+|---|---|---|
+| Gemini cites passages that don't support the number | Plausible but wrong assumptions | Validator checks every citation resolves; Phase 5 audits it |
+| Guidance filed after the as-of date leaks into backtests | Backtest looks better than reality | Filter dossier text by filing date; 100% look-ahead audit |
+| SEC XBRL lags for some foreign filers (TSM, Toyota stop at FY2024) | Stale models | Freshness check flags them; Phase 6 data sources |
+| Free data has no live prices or consensus | Upside needs a hand-entered price; no Street comparison | Provider interfaces ready for paid adapters (D1) |
+| LLM cost on a full-universe refresh | Budget overrun | Cached shared prefix, batch requests, re-model only on new filings |
+
+## Open questions
+
+- [ ] Which 20 reference companies anchor Phase 3 testing?
+- [ ] Monthly LLM budget for nightly and filing-triggered runs?
+- [ ] Is the Company Model tab internal only, or shown to all ThesisLens users?
 
 ---
 
