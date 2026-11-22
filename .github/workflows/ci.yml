@@ -45,6 +45,9 @@ jobs:
       - name: SEC fundamentals pipeline verification
         run: npm run verify:fundamentals
 
+      - name: Three-statement model & DCF verification
+        run: npm run verify:model
+
       - name: MCP server verification
         run: npm run verify:mcp
 

@@ -24,6 +24,13 @@ import {
 } from "../lib/quant-engine";
 import { searchPredictionMarkets } from "../lib/adapters/market-data";
 import { getCompanyFundamentals } from "../lib/fundamentals";
+import { buildCompanyModel } from "../lib/model";
+import {
+  companyModelRequestSchema,
+  presentModel,
+  summarizeModel,
+  toBuildOptions,
+} from "../lib/model/present";
 import {
   fundamentalsRequestSchema,
   presentFundamentals,
@@ -708,6 +715,18 @@ export async function handleCompanyFundamentals(
   return {
     summary: summarizeFundamentals(fundamentals),
     data: presentFundamentals(fundamentals, view) as unknown as Record<string, unknown>,
+  };
+}
+
+export const companyModelInputSchema = companyModelRequestSchema;
+
+export async function handleBuildCompanyModel(
+  args: z.infer<z.ZodObject<typeof companyModelInputSchema>>
+): Promise<DecisionToolOutput> {
+  const model = await buildCompanyModel(args.ticker, toBuildOptions(args));
+  return {
+    summary: summarizeModel(model),
+    data: presentModel(model, args.detail) as unknown as Record<string, unknown>,
   };
 }
 

@@ -17,7 +17,9 @@
     "verify:mcp": "tsx scripts/verify-mcp.ts",
     "verify:security": "tsx scripts/verify-security.ts",
     "verify:fundamentals": "tsx scripts/verify-fundamentals.ts",
-    "audit:fundamentals": "tsx scripts/audit-fundamentals.ts"
+    "verify:model": "tsx scripts/verify-model.ts",
+    "audit:fundamentals": "tsx scripts/audit-fundamentals.ts",
+    "audit:models": "tsx scripts/audit-models.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
