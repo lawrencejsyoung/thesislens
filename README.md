@@ -1,95 +1,104 @@
-# ThesisLens — Autonomous Gemini Multi-Agent Investment Committee
+# ThesisLens
 
-Built for **Hack @ DevFest Sudbury 2026 (GDG Sudbury / MLH Hack Day)**.
+**An AI investment committee that argues before it advises, and checks its numbers with real math.**
 
-**ThesisLens** is an institutional-grade finance & investing intelligence system where **Google Gemini is the core reasoning and orchestration engine—not a thin chat wrapper**. It combines a **4-agent Gemini Investment Committee**, **real Gemini Function Calling** into a deterministic quantitative finance engine, **Multimodal Vision** for earnings slides / brokerage screenshots / 10-K PDFs, **Structured JSON Outputs**, and **Firebase Firestore** persistence.
+Built for **Hack @ DevFest Sudbury 2026** (GDG Sudbury).
 
-## Using the workspace
-
-Choose your profile in the header to open a starter portfolio, retail research case, client plan, or long/short mandate. Open **Tools** for the full workspace directory or **Scenario library** for specialist examples. Review the inputs, select **Run analysis**, and open **Ask the committee** to inspect the reasoning and calculations. Memos are available from the header.
-
-The [workspace design system](docs/DESIGN_SYSTEM.md) describes the four user journeys, shared components, and agent interactions.
+![ThesisLens workspace](docs/workspace.jpg)
 
 ---
 
-## Why This Wins (GDE Evaluation Highlights)
+## The problem
 
-1. **Zero-Hallucination Financial Math via Gemini Function Calling**:
-   - Instead of asking an LLM to guess DCF valuations or Monte Carlo probabilities, our Bull & Bear Gemini agents actively invoke deterministic TypeScript quant tools (`run_dcf_valuation`, `run_monte_carlo_simulation`, `analyze_portfolio_metrics`, `stress_test_macro_shock`) via `@google/genai` function calling loops and cite verified outputs.
-2. **True Multi-Agent Adversarial Architecture**:
-   - **Agent 1 (Filing & Multimodal Extractor)**: Parses uploaded images/PDFs + portfolio structure using Gemini Vision.
-   - **Agent 2 (Bull Thesis Strategist)**: Invokes DCF & 800-path Monte Carlo tools to build a data-backed compounding case.
-   - **Agent 3 (Bear & Risk Auditor)**: Invokes HHI Concentration & 4-Regime Macro Shock tools to expose hidden tail risks.
-   - **Agent 4 (Chief Investment Officer)**: Synthesizes the adversarial debate via **Gemini Structured JSON Schema (`responseSchema`)** into a typed Executive Investment Memo with Conviction Score (0–100), Action Rating, Catalysts, and Ticker-by-Ticker Rebalancing Plan.
-3. **Northern Ontario / Sudbury Relevance**:
-   - Includes a dedicated **"Sudbury Critical Minerals & AI Grid"** scenario (Vale Sudbury Nickel/Copper, Cameco Uranium, Eaton Grid Power, Alphabet AI Cloud, Canadian Bonds) alongside AI Semiconductor Core and Canadian TFSA All-Weather scenarios.
-4. **Live Booth Demo Ready**:
-   - Runs **100% live** with any free Google Gemini API key (`GEMINI_API_KEY` in `.env.local` or pasted in the in-app **Demo mode** modal).
-   - Automatically falls back to an **Interactive Demo Mode** (still running 100% real DCF, Monte Carlo, and Macro Shock math) if no key is configured yet.
+Someone with a stock idea, a first portfolio or a rental-property deal usually has two options:
 
----
+- **A spreadsheet.** Building a DCF or a stress test takes hours and real training.
+- **A chatbot.** It answers in seconds, but language models are unreliable at arithmetic, and the answer is one confident voice with nobody arguing the other side.
 
-## Quick Start
+Student investment clubs, new investors and small advisory practices sit in that gap.
+
+## What ThesisLens does
+
+You describe a thesis ("Sudbury nickel and AI grid power are a long-term trade"), add your holdings or an earnings slide, and ThesisLens convenes a committee of Gemini agents:
+
+1. **An intake router** reads your inputs, including images and PDFs through Gemini's multimodal input, and decides which specialists the question needs.
+2. **Specialists** (equity, options, real estate, venture, prediction markets, forensic accounting, risk) each run the relevant models.
+3. **A Bull strategist and a Bear auditor** build opposing cases. They don't estimate numbers themselves. They call deterministic TypeScript tools through Gemini function calling (`run_dcf_valuation`, `run_monte_carlo_simulation`, `stress_test_cross_asset_shocks`, `analyze_portfolio_metrics` and others) and cite the results.
+4. **A Chief Investment Officer** weighs the debate and returns a typed memo through Gemini structured output: a conviction score, a rating, catalysts, risks and a holding-by-holding rebalancing plan.
+
+Every tool call, with its inputs and outputs, is visible in the app, so you can check how a conclusion was reached instead of taking it on trust.
+
+> ThesisLens is a decision-support and learning tool, not financial advice.
+
+## Why it matters here
+
+Sudbury's economy runs on nickel, copper and the mining supply chain, and those are the assets that matter to a lot of people in the region. The scenario library includes **Sudbury Critical Minerals & AI Grid** (Vale, Cameco, Eaton, Alphabet, Canadian bonds) and **Sudbury Fourplex vs. REITs**, alongside general cases like a first portfolio, an options trade and a seed-stage SAFE.
+
+## Demo (3 minutes)
+
+1. **The problem (20s).** A spreadsheet takes hours. A chatbot guesses at the math. Neither argues with you.
+2. **Run a committee (90s).** Open **Scenario library**, choose *Sudbury Critical Minerals & AI Grid* and select **Run analysis**.
+   - In **Ask the committee**, open **Calculations** under the Bull and Bear turns to show the actual tool calls and returned values.
+   - In **Scenario tests**, move the WACC and growth inputs and watch the valuation sensitivity grid update.
+   - Compare a rate shock against a commodity supercycle in the stress tests.
+3. **Multimodal and memo (40s).** Upload an earnings chart, show what the intake agent extracts, then **Save memo**.
+4. **Close (30s).** Who it's for, what's built, and what comes next.
+
+## How it's built
+
+```
+Thesis + holdings + chart / PDF
+              │
+              ▼
+   Next.js streaming API (/api/analyze)
+              │
+   ┌──────────┴──────────────────────┐
+   ▼                                 ▼
+Deterministic quant engine      Gemini agents (@google/genai)
+ • DCF + WACC sensitivity        • Intake router (multimodal)
+ • Monte Carlo projections       • Routed specialists
+ • Cross-asset stress tests      • Bull / Bear (function calling)
+ • Beta, Sharpe, concentration   • CIO (structured JSON output)
+   └──────────┬──────────────────────┘
+              ▼
+   Workspace UI (Recharts, live tool trace, saved memos in Firestore)
+```
+
+- **Gemini** (`gemini-2.5-flash` by default, override with `GEMINI_MODEL`): multimodal input, function calling and structured output.
+- **Next.js, TypeScript, Recharts** for the app; **Firebase Firestore** for saved memos, with a localStorage fallback.
+- **SEC EDGAR** fundamentals and a three-statement company model for real-company valuation (details below).
+- **An MCP server** so other agents (Gemini CLI, Claude, Cursor and others) can use the same quant tools.
+
+**Demo mode:** without an API key, the financial models still run for real and the committee's narrative is simulated. Add a free Gemini key to get the live committee.
+
+## Quick start
 
 ```bash
 npm install
 cp .env.example .env.local
-# Add your free GEMINI_API_KEY from https://aistudio.google.com/apikey
+# Add a GEMINI_API_KEY from https://aistudio.google.com/apikey (optional; demo mode works without it)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000), pick a profile in the header, then open **Tools** or **Scenario library**. The [workspace design system](docs/DESIGN_SYSTEM.md) describes the user journeys and components.
 
-### Optional: Enable Firebase Firestore Persistence
-Add your Firebase Web SDK keys to `.env.local` (see `.env.example`). ThesisLens will automatically sync saved Investment Memos to Firestore (`investment_memos` collection) and seamlessly fall back to browser localStorage if unconfigured.
+**Firestore (optional):** add your Firebase web SDK keys to `.env.local` (see `.env.example`) to sync saved memos to the `investment_memos` collection.
 
-### Deploy to Firebase Hosting
-```bash
-npm install -g firebase-tools
-firebase login
-firebase deploy
-```
+**Deploy:** see [`docs/GCP_DEPLOYMENT.md`](docs/GCP_DEPLOYMENT.md) for Cloud Run, or use `firebase deploy` for Firebase Hosting.
 
----
+## What's next
 
-## Architecture
-
-```
-User Thesis + Portfolio + Earnings Slide/PDF
-                    │
-                    ▼
-   Next.js SSE Streaming API (/api/analyze)
-                    │
-   ┌────────────────┴────────────────┐
-   ▼                                 ▼
-Deterministic Quant Engine     Google Gemini 2.5 Flash (@google/genai)
- • 5Y DCF + WACC Heatmap        • Agent 1: Multimodal Vision Extractor
- • 800-Path Monte Carlo         • Agent 2: Bull Strategist (Function Calling)
- • 4-Regime Macro Shocks        • Agent 3: Bear Risk Auditor (Function Calling)
- • Beta / Sharpe / HHI          • Agent 4: CIO Synthesizer (Structured JSON)
-   └────────────────┬────────────────┘
-                    ▼
-   Interactive Terminal UI (Recharts + Live Tool Trace + Firestore Memos)
-```
+- Test with a student investment club and see which parts they actually use.
+- Add Canadian filings (SEDAR+) so TSX-listed miners get the same fundamentals as US filers.
+- Backtest the committee's ratings against what actually happened ([`docs/VALUATION_MODELS_PLAN.md`](docs/VALUATION_MODELS_PLAN.md)).
 
 ---
 
-## 3-Minute DevFest Sudbury Live Pitch Flow
-
-1. **Hook (20s)**: Retail investors either use spreadsheets that take hours or ask chatbots that hallucinate financial math. **ThesisLens** puts an autonomous 4-agent Gemini Investment Committee on your desk.
-2. **Live Demo — Sudbury Critical Minerals (90s)**:
-   - Open the **Scenario library**, choose *Sudbury Critical Minerals & AI Grid*, and select **Run analysis**.
-   - In **Ask the committee**, expand the **Calculations** inside Agent 2 & Agent 3 to show judges real tool arguments (`run_dcf_valuation`, `stress_test_macro_shock`) and zero-hallucination math.
-   - Open **Scenario tests** and select the **DCF** tab and drag the **WACC** and **5Y FCF Growth** sliders live to show the valuation sensitivity heatmap update in real time.
-   - Switch to **Macro Shock Stress Test** to show how the portfolio behaves in a *+100bps Rate Shock* vs. *Critical Minerals Supercycle*.
-3. **Multimodal & Firebase (40s)**: Upload an earnings chart screenshot so Agent 1 extracts financial signals via Gemini Vision, then click **Save Memo** to persist the structured CIO report.
-4. **Close (30s)**: Built from scratch on Google Gemini 2.5 Flash (`@google/genai`), Next.js, TypeScript, Recharts, and Firebase—ready for retail investors, student investment clubs, and financial advisors.
-
----
+# Technical reference
 
 ## Connect Any AI Agent (MCP Server)
 
-ThesisLens ships with a **dual-transport Model Context Protocol (MCP) server** so *any* AI agent (Antigravity, Claude Desktop, Claude Code, Cursor, Gemini CLI, OpenAI Agents SDK, or custom web agents) can call its deterministic quant engine, compare competing capital options head-to-head, and run adversarial Bull vs. Bear pre-mortems.
+ThesisLens ships with a **dual-transport Model Context Protocol (MCP) server** so other AI agents (Antigravity, Claude Desktop, Claude Code, Cursor, Gemini CLI, OpenAI Agents SDK, or custom web agents) can call its deterministic quant engine, compare competing capital options head-to-head, and run adversarial Bull vs. Bear pre-mortems.
 
 - **19 Tools**: `get_company_fundamentals`, `build_company_model`, `run_company_analyst`, `run_dcf_valuation`, `run_monte_carlo_projection`, `analyze_portfolio_risk`, `simulate_rebalance`, `underwrite_real_estate_deal`, `compare_real_estate_markets`, `analyze_bond_duration`, `evaluate_prediction_bet`, `price_option_strategy`, `simulate_venture_powerlaw`, `run_forensic_accounting_audit`, `audit_global_tax_strategy`, `search_prediction_markets`, `query_intelligence_corpus`, `compare_decision_options`, and `run_adversarial_committee`.
 - **3 Decision-Coaching Prompts**: `decision-brief`, `buy-vs-invest`, `probabilistic-bet-sizing`.
@@ -105,7 +114,7 @@ Add this to your MCP client config (e.g. `claude_desktop_config.json`, `.cursor/
     "thesislens": {
       "command": "npx",
       "args": ["tsx", "src/mcp/stdio.ts"],
-      "cwd": "/ABSOLUTE/PATH/TO/hackdevsudbury",
+      "cwd": "/ABSOLUTE/PATH/TO/thesislens",
       "env": {
         "GEMINI_API_KEY": "optional-for-live-gemini-committee"
       }
