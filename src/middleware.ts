@@ -22,6 +22,10 @@ function getRateLimitForPath(pathname: string): { tier: string; config: RateLimi
   ) {
     return { tier: "ai", config: { limit: 25, windowMs: 60_000 } };
   }
+  if (pathname.startsWith("/api/fundamentals")) {
+    // Each uncached request can fan out to several SEC EDGAR calls (SEC allows 10 req/s total).
+    return { tier: "fundamentals", config: { limit: 20, windowMs: 60_000 } };
+  }
   if (pathname.startsWith("/api/mcp")) {
     return { tier: "mcp", config: { limit: 40, windowMs: 60_000 } };
   }

@@ -11,11 +11,13 @@ import {
   adversarialCommitteeInputSchema,
   bondDurationInputSchema,
   cfaForensicsInputSchema,
+  companyFundamentalsInputSchema,
   compareDecisionOptionsInputSchema,
   dcfInputSchema,
   DecisionToolOutput,
   globalTaxInputSchema,
   handleBondDuration,
+  handleCompanyFundamentals,
   handleCompareDecisionOptions,
   handleCompareRealEstateMarkets,
   handleDcfValuation,
@@ -330,6 +332,24 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     async (args) => {
       try {
         return toToolResult(await handleSearchPredictionMarkets(args));
+      } catch (err) {
+        return toErrorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_company_fundamentals",
+    {
+      title: "Company Fundamentals (SEC EDGAR)",
+      description:
+        "Returns a normalized annual and quarterly financial history (income statement, balance sheet, cash flow, bank items) for any SEC-reporting company, built from XBRL filings, with data-quality checks. Supports a point-in-time `asOf` cutoff for backtests. Use before valuing a specific company instead of estimating its financials.",
+      inputSchema: companyFundamentalsInputSchema,
+      annotations: READ_ONLY_LIVE,
+    },
+    async (args) => {
+      try {
+        return toToolResult(await handleCompanyFundamentals(args));
       } catch (err) {
         return toErrorResult(err);
       }

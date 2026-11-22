@@ -15,7 +15,9 @@
     "mcp": "tsx src/mcp/stdio.ts",
     "verify:quant": "tsx scripts/verify-quant.ts",
     "verify:mcp": "tsx scripts/verify-mcp.ts",
-    "verify:security": "tsx scripts/verify-security.ts"
+    "verify:security": "tsx scripts/verify-security.ts",
+    "verify:fundamentals": "tsx scripts/verify-fundamentals.ts",
+    "audit:fundamentals": "tsx scripts/audit-fundamentals.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
