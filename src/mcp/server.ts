@@ -12,11 +12,13 @@ import {
   bondDurationInputSchema,
   cfaForensicsInputSchema,
   companyFundamentalsInputSchema,
+  companyModelInputSchema,
   compareDecisionOptionsInputSchema,
   dcfInputSchema,
   DecisionToolOutput,
   globalTaxInputSchema,
   handleBondDuration,
+  handleBuildCompanyModel,
   handleCompanyFundamentals,
   handleCompareDecisionOptions,
   handleCompareRealEstateMarkets,
@@ -350,6 +352,24 @@ export function createThesisLensMcpServer(options: ThesisLensMcpOptions = {}): M
     async (args) => {
       try {
         return toToolResult(await handleCompanyFundamentals(args));
+      } catch (err) {
+        return toErrorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "build_company_model",
+    {
+      title: "Three-Statement Company Model & DCF",
+      description:
+        "Builds a linked income statement / balance sheet / cash flow model (10 forecast years by default) from a company's SEC filings, then values it with an FCFF DCF (CAPM WACC, value-driver terminal value), bear/base/bull scenarios and a WACC x growth sensitivity grid. Every baseline assumption is derived from reported history and documented; pass driver overrides with a rationale to express a view. Not for banks, insurers or brokers.",
+      inputSchema: companyModelInputSchema,
+      annotations: READ_ONLY_LIVE,
+    },
+    async (args) => {
+      try {
+        return toToolResult(await handleBuildCompanyModel(args));
       } catch (err) {
         return toErrorResult(err);
       }

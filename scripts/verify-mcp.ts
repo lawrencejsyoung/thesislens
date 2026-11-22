@@ -18,7 +18,8 @@ async function testInMemoryServer() {
 
   // Discovery checks
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 17, `Expected 17 MCP tools, got ${tools.length}`);
+  assert.equal(tools.length, 18, `Expected 18 MCP tools, got ${tools.length}`);
+  assert(tools.some((t) => t.name === "build_company_model"), "build_company_model registered");
   assert(tools.some((t) => t.name === "get_company_fundamentals"), "get_company_fundamentals registered");
   console.log(`   PASS: Discovered ${tools.length} tools.`);
 
@@ -179,7 +180,7 @@ async function testStdioTransport() {
   await client.connect(transport);
 
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 17, "stdio server should expose all 17 tools");
+  assert.equal(tools.length, 18, "stdio server should expose all 18 tools");
 
   const res = await client.callTool({
     name: "analyze_bond_duration",

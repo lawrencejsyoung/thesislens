@@ -55,6 +55,7 @@ export const LINE_ITEM_IDS = [
   // Balance sheet
   "cash",
   "shortTermInvestments",
+  "longTermInvestments",
   "receivables",
   "inventory",
   "currentAssets",
@@ -132,7 +133,16 @@ export const REPORTED_LINE_ITEMS: LineItemDef[] = [
       "us-gaap:RevenuesNetOfInterestExpense",
       "ifrs-full:Revenue",
       "ifrs-full:RevenueFromContractsWithCustomers"
-    ),
+    ).concat([
+      // IFRS filers that only tag the components (e.g. Novartis: goods + royalties).
+      {
+        sum: [
+          "ifrs-full:RevenueFromSaleOfGoods",
+          "ifrs-full:RevenueFromRenderingOfServices",
+          "ifrs-full:RevenueFromRoyalties",
+        ],
+      },
+    ]),
     { strategy: "max" }
   ),
   def(
@@ -302,6 +312,17 @@ export const REPORTED_LINE_ITEMS: LineItemDef[] = [
       "us-gaap:AvailableForSaleSecuritiesDebtSecuritiesCurrent",
       "ifrs-full:CurrentInvestments",
       "ifrs-full:OtherCurrentFinancialAssets"
+    )
+  ),
+  def(
+    "longTermInvestments",
+    "Long-term marketable securities",
+    "balance",
+    "instant",
+    t(
+      "us-gaap:MarketableSecuritiesNoncurrent",
+      "us-gaap:AvailableForSaleSecuritiesDebtSecuritiesNoncurrent",
+      "us-gaap:LongTermInvestments"
     )
   ),
   def(

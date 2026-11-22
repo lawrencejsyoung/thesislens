@@ -548,6 +548,9 @@ function applyComputedItems(p: FinancialPeriod): void {
       set("totalLiabilities", v.totalAssets! - v.equityInclNci! - mezz, ["totalAssets", "equityInclNci", "mezzanineEquity"]);
     }
   }
+  if (!has("pretaxIncome") && has("netIncome") && has("incomeTax")) {
+    set("pretaxIncome", v.netIncome! + v.incomeTax!, ["netIncome", "incomeTax"]);
+  }
   // Companies without an operating-income line (integrated oil, several pharmas): EBIT proxy.
   if (!has("operatingIncome") && !has("netInterestIncome") && has("pretaxIncome") && has("interestExpense")) {
     set("operatingIncome", v.pretaxIncome! + v.interestExpense!, ["pretaxIncome", "interestExpense"]);
