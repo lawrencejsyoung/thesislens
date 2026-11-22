@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "mcp": "tsx src/mcp/stdio.ts",
     "verify:quant": "tsx scripts/verify-quant.ts",
@@ -26,15 +26,22 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "recharts": "^2.15.3",
-    "zod": "^3.24.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4.1.5",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.29",
     "tailwindcss": "^4.1.5",
     "tsx": "^4.23.15",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
+    "postcss": "^8.5.33"
   }
 }
