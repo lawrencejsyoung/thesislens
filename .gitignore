@@ -4,5 +4,10 @@ out/
 .env
 .env.local
 .env.*.local
+!.env.example
 .DS_Store
 *.log
+tsconfig.tsbuildinfo
+*.pem
+*.key
+service-account*.json

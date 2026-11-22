@@ -323,10 +323,18 @@ function getAliasedValue(
   return undefined;
 }
 
+const BLOCKED_OBJECT_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_IMPORT_CHARS = 2_000_000;
+const MAX_IMPORT_ROWS = 500;
+
 function normalizeRecordKeys(raw: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = Object.create(null);
   for (const [k, v] of Object.entries(raw)) {
-    out[normalizeKey(k)] = v;
+    const normalized = normalizeKey(k);
+    if (!normalized || BLOCKED_OBJECT_KEYS.has(normalized) || BLOCKED_OBJECT_KEYS.has(k)) {
+      continue;
+    }
+    out[normalized] = v;
   }
   return out;
 }
@@ -337,8 +345,15 @@ function extractDraftsFromRecords(
   errors: string[]
 ): RawHoldingDraft[] {
   const drafts: RawHoldingDraft[] = [];
+  const boundedRecords =
+    records.length > MAX_IMPORT_ROWS
+      ? (warnings.push(
+          `Import truncated to maximum of ${MAX_IMPORT_ROWS} holdings.`
+        ),
+        records.slice(0, MAX_IMPORT_ROWS))
+      : records;
 
-  records.forEach((rawRecord, idx) => {
+  boundedRecords.forEach((rawRecord, idx) => {
     const rowLabel = `Row ${idx + 1}`;
     const rec = normalizeRecordKeys(rawRecord);
 
@@ -735,6 +750,15 @@ export function parsePortfolioImport(
       holdings: [],
       warnings,
       errors: ["Input is empty. Paste CSV or JSON data, or upload a file."],
+    };
+  }
+
+  if (rawText.length > MAX_IMPORT_CHARS) {
+    return {
+      format,
+      holdings: [],
+      warnings,
+      errors: ["Import exceeds maximum allowed size of 2 MB."],
     };
   }
 

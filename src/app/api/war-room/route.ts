@@ -14,6 +14,11 @@ import {
   defaultResidencyForJurisdiction,
   simulateCioRebalance,
 } from "@/lib/quant/rebalance-simulator";
+import {
+  extractSafeGeminiApiKey,
+  logServerError,
+  readJsonBodyWithLimit,
+} from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -254,21 +259,23 @@ function runDeterministicWarRoom(payload: WarRoomRequestPayload): WarRoomMessage
 }
 
 export async function POST(req: NextRequest) {
-  let payload: WarRoomRequestPayload;
-  try {
-    payload = (await req.json()) as WarRoomRequestPayload;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  const parsedBody = await readJsonBodyWithLimit<WarRoomRequestPayload>(req, 512_000);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
   }
+  const payload = parsedBody.data;
 
-  if (!payload.question?.trim()) {
-    return NextResponse.json({ error: "Question is required" }, { status: 400 });
+  if (!payload.question?.trim() || payload.question.length > 2000) {
+    return NextResponse.json(
+      { error: "Question is required (max 2000 characters)." },
+      { status: 400 }
+    );
   }
 
   const targetRole: WarRoomTargetRole = ROLE_META[payload.targetRole]
     ? payload.targetRole
     : "cio";
-  const headerKey = req.headers.get("x-gemini-api-key")?.trim();
+  const headerKey = extractSafeGeminiApiKey(req);
   const apiKey = headerKey || process.env.GEMINI_API_KEY?.trim();
 
   if (!apiKey) {
@@ -416,7 +423,7 @@ First call 1-2 relevant quantitative tools to verify your math (never guess fina
 
     return NextResponse.json({ message });
   } catch (err) {
-    console.error("War Room Gemini error, falling back to deterministic engine:", err);
+    logServerError("api/war-room:POST", err);
     const message = runDeterministicWarRoom({ ...payload, targetRole });
     return NextResponse.json({ message });
   }

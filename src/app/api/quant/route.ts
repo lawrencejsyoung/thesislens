@@ -28,10 +28,22 @@ import {
   RealEstatePropertyClass,
   VentureDealInputs,
 } from "@/lib/types";
+import {
+  logServerError,
+  readJsonBodyWithLimit,
+} from "@/lib/security/validation";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const parsed = await readJsonBodyWithLimit<Record<string, unknown>>(req, 256_000);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+
   try {
-    const body = await req.json();
+    const body = parsed.data;
     const { type } = body as {
       type:
         | "dcf"
@@ -51,7 +63,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(runDcfValuation(body.dcfInputs as DcfInputs));
     }
     if (type === "montecarlo") {
-      return NextResponse.json(runMonteCarloSimulation(body.params));
+      return NextResponse.json(
+        runMonteCarloSimulation(
+          body.params as Parameters<typeof runMonteCarloSimulation>[0]
+        )
+      );
     }
     if (type === "portfolio") {
       const holdings = body.holdings as Holding[];
@@ -133,8 +149,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   } catch (err) {
+    logServerError("api/quant:POST", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Quant calculation failed" },
+      { error: "Quant calculation failed." },
       { status: 500 }
     );
   }

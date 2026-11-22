@@ -1,16 +1,28 @@
 import { NextRequest } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createThesisLensMcpServer } from "@/mcp/server";
+import {
+  constantTimeEquals,
+  extractSafeGeminiApiKey,
+  logServerError,
+} from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.MCP_API_KEY?.trim();
-  if (!expected) return true;
+  if (!expected) {
+    // Fail-closed in production unless explicitly opted into unauthenticated MCP access
+    if (process.env.NODE_ENV === "production") {
+      return process.env.MCP_ALLOW_UNAUTHENTICATED === "true";
+    }
+    return true;
+  }
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  return token === expected;
+  if (!token) return false;
+  return constantTimeEquals(token, expected);
 }
 
 function unauthorizedResponse(): Response {
@@ -25,7 +37,10 @@ function unauthorizedResponse(): Response {
     }),
     {
       status: 401,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": 'Bearer realm="ThesisLens MCP"',
+      },
     }
   );
 }
@@ -36,7 +51,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
   }
 
   const geminiApiKey =
-    req.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY || undefined;
+    extractSafeGeminiApiKey(req) || process.env.GEMINI_API_KEY?.trim() || undefined;
 
   const server = createThesisLensMcpServer({ geminiApiKey });
   const transport = new WebStandardStreamableHTTPServerTransport({
@@ -47,6 +62,22 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
   await server.connect(transport);
   try {
     return await transport.handleRequest(req);
+  } catch (err) {
+    logServerError("api/mcp", err);
+    return new Response(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: "Internal MCP server error.",
+        },
+        id: null,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } finally {
     await server.close().catch(() => {});
   }

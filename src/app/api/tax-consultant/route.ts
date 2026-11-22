@@ -5,6 +5,11 @@ import {
   runGlobalTaxAudit,
 } from "@/lib/quant/global-tax-engine";
 import { GlobalTaxProfile, TaxConsultantMessage } from "@/lib/types";
+import {
+  extractSafeGeminiApiKey,
+  logServerError,
+  readJsonBodyWithLimit,
+} from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,15 +44,21 @@ const TAX_CONSULTANT_SCHEMA = {
 };
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as {
-      question: string;
-      profile: GlobalTaxProfile;
-      history?: Pick<TaxConsultantMessage, "role" | "content">[];
-    };
+  const parsed = await readJsonBodyWithLimit<{
+    question: string;
+    profile: GlobalTaxProfile;
+    history?: Pick<TaxConsultantMessage, "role" | "content">[];
+  }>(req, 256_000);
 
-    const question = (body.question || "").trim();
-    if (!question || !body.profile) {
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+
+  try {
+    const body = parsed.data;
+
+    const question = (body.question || "").trim().slice(0, 2000);
+    if (!question || !body.profile || typeof body.profile !== "object") {
       return NextResponse.json(
         { error: "Missing question or global tax profile." },
         { status: 400 }
@@ -57,7 +68,7 @@ export async function POST(req: NextRequest) {
     // Always recompute deterministic ground truth server-side so numbers are 100% verified
     const report = runGlobalTaxAudit(body.profile);
     const apiKey =
-      req.headers.get("x-gemini-api-key")?.trim() ||
+      extractSafeGeminiApiKey(req) ||
       process.env.GEMINI_API_KEY?.trim() ||
       "";
 
@@ -181,12 +192,10 @@ ${question}`;
       });
     }
   } catch (err) {
+    logServerError("api/tax-consultant:POST", err);
     return NextResponse.json(
       {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Failed to run Global Tax Consultant.",
+        error: "Failed to run Global Tax Consultant.",
       },
       { status: 500 }
     );
