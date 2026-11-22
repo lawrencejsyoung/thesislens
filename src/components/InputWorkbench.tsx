@@ -8,12 +8,17 @@ import {
   Trash2,
   Sparkles,
   FileImage,
+  FileUp,
   X,
   SlidersHorizontal,
   Search,
   Globe2,
   Compass,
 } from "lucide-react";
+import {
+  PortfolioImportApplyPayload,
+  PortfolioImporterModal,
+} from "./PortfolioImporterModal";
 import {
   AnalysisMode,
   AnalysisRequestPayload,
@@ -80,6 +85,7 @@ export function InputWorkbench({
   const [marketQuery, setMarketQuery] = useState("");
   const [marketResults, setMarketResults] = useState<LiveMarketQuote[]>([]);
   const [searchingMarkets, setSearchingMarkets] = useState(false);
+  const [importerOpen, setImporterOpen] = useState(false);
 
   const activeMode: AnalysisMode = payload.analysisMode ?? "portfolio";
   const jurisdiction: Jurisdiction = payload.jurisdiction ?? "Canada";
@@ -218,6 +224,39 @@ export function InputWorkbench({
       ...payload,
       holdings: payload.holdings.filter((_, i) => i !== index),
     });
+  };
+
+  const handleApplyPortfolioImport = (data: PortfolioImportApplyPayload) => {
+    const nextHoldings =
+      data.mode === "append"
+        ? [...payload.holdings, ...data.holdings]
+        : data.holdings;
+
+    const patch: Partial<AnalysisRequestPayload> = {
+      holdings: nextHoldings,
+    };
+
+    if (data.mode === "replace" && data.applyMetadata) {
+      if (data.inferredCapital && data.inferredCapital >= 1000) {
+        patch.capital = data.inferredCapital;
+      }
+      if (data.metadata) {
+        if (data.metadata.title) patch.title = data.metadata.title;
+        if (data.metadata.thesisPrompt) patch.thesisPrompt = data.metadata.thesisPrompt;
+        if (data.metadata.analysisMode) patch.analysisMode = data.metadata.analysisMode;
+        if (data.metadata.jurisdiction) patch.jurisdiction = data.metadata.jurisdiction;
+        if (data.metadata.capital !== undefined) patch.capital = data.metadata.capital;
+        if (data.metadata.monthlyContribution !== undefined) {
+          patch.monthlyContribution = data.metadata.monthlyContribution;
+        }
+        if (data.metadata.horizonYears !== undefined) {
+          patch.horizonYears = data.metadata.horizonYears;
+        }
+        if (data.metadata.riskProfile) patch.riskProfile = data.metadata.riskProfile;
+      }
+    }
+
+    onChange({ ...payload, ...patch });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -861,7 +900,7 @@ export function InputWorkbench({
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Positions ({payload.holdings.length})
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span
               className={`font-mono text-[11px] font-semibold ${
                 hasShorts
@@ -875,6 +914,14 @@ export function InputWorkbench({
                 ? `G:${grossExposure.toFixed(0)}% / N:${netExposure.toFixed(0)}%`
                 : `Sum: ${totalWeight.toFixed(0)}%`}
             </span>
+            <button
+              type="button"
+              onClick={() => setImporterOpen(true)}
+              title="Import portfolio from CSV or JSON"
+              className="flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
+            >
+              <FileUp className="h-3 w-3" /> Import
+            </button>
             <button
               type="button"
               onClick={addHolding}
@@ -986,6 +1033,13 @@ export function InputWorkbench({
           </>
         )}
       </button>
+
+      <PortfolioImporterModal
+        open={importerOpen}
+        onClose={() => setImporterOpen(false)}
+        currentPayload={payload}
+        onApplyImport={handleApplyPortfolioImport}
+      />
     </div>
   );
 }
