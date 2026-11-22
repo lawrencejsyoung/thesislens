@@ -1,0 +1,15 @@
+{
+  "name": "thesislens",
+  "version": "1.0.0",
+  "description": "Zero-hallucination quantitative finance, SEC EDGAR 3-statement company valuation, portfolio risk, tax-wrapper optimization, and adversarial investment committee tools.",
+  "mcpServers": {
+    "thesislens": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/stdio.ts"],
+      "env": {
+        "SEC_USER_AGENT": "ThesisLens/1.0 (contact@thesislens.ai)"
+      }
+    }
+  },
+  "contextFileName": "plugins/antigravity/skills/thesislens-analyst/SKILL.md"
+}

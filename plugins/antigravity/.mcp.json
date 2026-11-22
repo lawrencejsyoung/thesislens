@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "thesislens": {
+      "transport": "streamable-http",
+      "url": "https://api.thesislens.ai/api/mcp",
+      "auth": {
+        "type": "oauth2",
+        "resourceMetadataUrl": "https://api.thesislens.ai/.well-known/oauth-protected-resource"
+      }
+    }
+  }
+}

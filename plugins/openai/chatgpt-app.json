@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "name": "ThesisLens",
+  "tagline": "Zero-hallucination valuation, portfolio risk & investment committee tools",
+  "description": "Connect ChatGPT and OpenAI Agents to ThesisLens's deterministic quant engine, SEC EDGAR 3-statement valuation models, tax-aware rebalancing, and adversarial Bull vs. Bear pre-mortems.",
+  "mcp": {
+    "transport": "streamable-http",
+    "endpoint": "https://api.thesislens.ai/api/mcp",
+    "oauth_protected_resource": "https://api.thesislens.ai/.well-known/oauth-protected-resource"
+  },
+  "openapi": {
+    "spec_url": "https://api.thesislens.ai/api/openapi.json"
+  },
+  "audience_tiers": [
+    "retail_pro",
+    "advisor",
+    "hedge_fund"
+  ]
+}

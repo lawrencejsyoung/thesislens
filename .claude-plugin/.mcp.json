@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "thesislens": {
+      "type": "http",
+      "url": "https://api.thesislens.ai/api/mcp"
+    }
+  }
+}

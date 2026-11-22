@@ -16,6 +16,7 @@
     "verify:quant": "tsx scripts/verify-quant.ts",
     "verify:mcp": "tsx scripts/verify-mcp.ts",
     "verify:security": "tsx scripts/verify-security.ts",
+    "verify:production": "tsx scripts/verify-production.ts",
     "verify:fundamentals": "tsx scripts/verify-fundamentals.ts",
     "verify:model": "tsx scripts/verify-model.ts",
     "verify:analyst": "tsx scripts/verify-analyst.ts",

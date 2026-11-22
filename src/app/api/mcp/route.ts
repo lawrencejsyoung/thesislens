@@ -1,37 +1,23 @@
 import { NextRequest } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createThesisLensMcpServer } from "@/mcp/server";
-import {
-  constantTimeEquals,
-  extractSafeGeminiApiKey,
-  logServerError,
-} from "@/lib/security/validation";
+import { resolveRequestContext } from "@/lib/auth/session";
+import { consumeQuota } from "@/lib/billing/entitlements";
+import { recordAuditEvent, sha256Hex } from "@/lib/compliance/provenance";
+import { extractSafeGeminiApiKey, logServerError } from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function isAuthorized(req: NextRequest): boolean {
-  const expected = process.env.MCP_API_KEY?.trim();
-  if (!expected) {
-    // Fail-closed in production unless explicitly opted into unauthenticated MCP access
-    if (process.env.NODE_ENV === "production") {
-      return process.env.MCP_ALLOW_UNAUTHENTICATED === "true";
-    }
-    return true;
-  }
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  if (!token) return false;
-  return constantTimeEquals(token, expected);
-}
-
-function unauthorizedResponse(): Response {
+function unauthorizedResponse(origin: string): Response {
+  const metadataUrl = `${origin.replace(/\/$/, "")}/.well-known/oauth-protected-resource`;
   return new Response(
     JSON.stringify({
       jsonrpc: "2.0",
       error: {
         code: -32001,
-        message: "Unauthorized: valid Bearer token required (MCP_API_KEY).",
+        message:
+          "Unauthorized: valid OAuth 2.1 Bearer token, scoped API key (tl_live_*), or MCP_API_KEY required.",
       },
       id: null,
     }),
@@ -39,21 +25,59 @@ function unauthorizedResponse(): Response {
       status: 401,
       headers: {
         "Content-Type": "application/json",
-        "WWW-Authenticate": 'Bearer realm="ThesisLens MCP"',
+        "WWW-Authenticate": `Bearer realm="ThesisLens MCP", resource_metadata="${metadataUrl}"`,
       },
     }
   );
 }
 
+function quotaExceededResponse(used: number, limit: number, tier: string): Response {
+  return new Response(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      error: {
+        code: -32002,
+        message: `Monthly MCP call quota exceeded for tier "${tier}" (${used}/${limit}). Upgrade your ThesisLens plan to continue.`,
+      },
+      id: null,
+    }),
+    {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
 async function handleMcpRequest(req: NextRequest): Promise<Response> {
-  if (!isAuthorized(req)) {
-    return unauthorizedResponse();
+  const origin = process.env.NEXT_PUBLIC_APP_URL?.trim() || req.nextUrl.origin;
+  const ctx = resolveRequestContext(req, { isMcpRoute: true });
+  if (!ctx) {
+    return unauthorizedResponse(origin);
+  }
+
+  const quota = consumeQuota(ctx, "mcpCalls", 1);
+  if (!quota.allowed) {
+    recordAuditEvent({
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      surface: ctx.surface,
+      action: "mcp:quota_denied",
+      inputHash: sha256Hex({ method: req.method, path: req.nextUrl.pathname }),
+      tokensUsed: 0,
+      costUsd: 0,
+      status: "denied",
+      metadata: { used: quota.used, limit: quota.limit, tier: quota.tier },
+    });
+    return quotaExceededResponse(quota.used, quota.limit, quota.tier);
   }
 
   const geminiApiKey =
     extractSafeGeminiApiKey(req) || process.env.GEMINI_API_KEY?.trim() || undefined;
 
-  const server = createThesisLensMcpServer({ geminiApiKey });
+  const server = createThesisLensMcpServer({
+    geminiApiKey,
+    requestContext: ctx,
+  });
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // Stateless mode for Next.js / serverless compatibility
     enableJsonResponse: true,
@@ -61,7 +85,19 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
 
   await server.connect(transport);
   try {
-    return await transport.handleRequest(req);
+    const response = await transport.handleRequest(req);
+    recordAuditEvent({
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      surface: ctx.surface,
+      action: `mcp:${req.method.toLowerCase()}`,
+      inputHash: sha256Hex({ method: req.method, authMethod: ctx.authMethod }),
+      tokensUsed: 0,
+      costUsd: 0,
+      status: response.ok ? "ok" : "error",
+      metadata: { tier: quota.tier, mcpCallsUsed: quota.used, mcpCallsLimit: quota.limit },
+    });
+    return response;
   } catch (err) {
     logServerError("api/mcp", err);
     return new Response(
