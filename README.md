@@ -203,3 +203,9 @@ npm run verify:mcp     # In-memory + real stdio MCP integration tests
 npm run verify:fundamentals  # SEC XBRL normalization on real filing fixtures
 npm run verify:model         # Three-statement engine + DCF invariants
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+> **Disclaimer:** ThesisLens is provided for educational, research, and informational purposes only and does not constitute financial, investment, tax, or legal advice.
