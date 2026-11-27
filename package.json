@@ -1,6 +1,7 @@
 {
   "name": "thesislens-devfest-sudbury",
   "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "description": "ThesisLens — Autonomous Multi-Agent Investment Committee & Portfolio Stress-Test Engine powered by Google Gemini",
   "bin": {
